@@ -4,13 +4,13 @@
 -export([server/0, whois/0, admin/0, cmd_string/0]).
 
 version() -> "1.2".
-bname() -> "tachikoma[bot]".
+bname() -> "ercbot".
 
-nick() -> "tachikoma[bot]".
-channel() -> "#hackerforum".
+nick() -> "name[bot]".
+channel() -> "#channel".
 server() -> {"irc.freenode.net", 6667}.
-whois() -> "Erlang bot, written by Flame_Alchemist".
+whois() -> "Erlang bot, written by mbal".
 
-admin() -> ["Flame_Alchemist"].
+admin() -> ["admin"].
 
 cmd_string() -> "!bot".
