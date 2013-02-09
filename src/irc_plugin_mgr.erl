@@ -12,19 +12,27 @@ start_link(Bot, Supervisor) ->
 %gen_server's api.
 init([Bot, Supervisor]) ->
     {ok, Plugins} = gen_event:start_link({local, evt_mgr}),
-    gen_event:add_sup_handler(Plugins, uptime, [Bot]),
-    gen_event:add_sup_handler(Plugins, tell_time, [Bot]),
-    gen_event:add_sup_handler(Plugins, help_text, [Bot]),
-    gen_event:add_sup_handler(Plugins, admin, [Bot]),
+    lists:foreach(fun(X) -> gen_event:add_sup_handler(Plugins, X, [Bot]) end,
+		  settings:plugins()),
     {ok, #state{bot=Bot, supervisor=Supervisor, plug_event=Plugins}}.
 
 handle_call(_Request, _From, State) ->
     {ok, State}.
 
+%we handle the "help" command here to be able to get the list of all
+%the loaded plugins, so we can simply call plugin:name() - plugin:description()
+handle_cast({cmd, Nick, "help", _Args}, State) ->
+    irc_bot_api:send_priv_msg(State#state.bot, [settings:bname(), "(v", 
+						settings:version(), ") ",
+						settings:whois()]),
+    lists:foreach(fun(X) -> irc_bot_api:send_priv_msg(State#state.bot,
+						      [X:name(), ": ", X:short_description()])
+		  end, settings:plugins()),
+    {noreply, State};
+
 handle_cast({cmd, Nick, Command, Args}, State) ->
-    utils:debug("received command ~w", [now()]),
+    utils:debug("Received command @ ~s", [tell_time:get_time()]),
     gen_event:notify(State#state.plug_event, {cmd, Nick, Command, Args}),
-    %gen_tcp:send(State#state.socket, Data ++ ?CRNL),
     {noreply, State};
 
 %well, if other possible messages come to mind, we'll add them later

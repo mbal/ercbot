@@ -17,13 +17,14 @@
 -define(CHILD_IRC_PLUGIN(SUP), {irc_plugin_mgr, [self(), SUP]}).
 
 -export([start_link/4, init/1]).
--export([code_change/4, handle_event/3, handle_info/3, handle_sync_event/4, terminate/3]).
+-export([code_change/4, handle_event/3, handle_info/3]).
+-export([handle_sync_event/4, terminate/3]).
 -export([logged/2, idle/2, ready/2]).
 
 start_link(Sup, Nick, Channel, Server) ->
     utils:debug("~w starting...", [?MODULE]),
     case ets:lookup(state_storage, irc_bot) of
-        [{irc_bot, NextState, NextData}] -> 
+        [{irc_bot, NextState, NextData}] ->
             gen_fsm:start_link({local, ?MODULE}, ?MODULE, [Sup, NextState, NextData, Nick, Channel], []);
         [] ->
             gen_fsm:start_link({local, ?MODULE}, ?MODULE, [Sup, idle, #state{server=Server}, Nick, Channel], []);
@@ -43,7 +44,7 @@ idle(_, State) ->
     {next_state, idle, State}.
 
 logged({recv, Data}, State) ->
-    Res = utils:irc_parse(string:tokens(Data, ": ")),
+    Res = utils:irc_parse(Data), %string:tokens(Data, ": ")),
     case Res of
         {control, join} ->
             send_msg(State, ["JOIN :", State#state.channel]),
@@ -53,19 +54,16 @@ logged({recv, Data}, State) ->
             reply_ping(State, Data);
         {control, change_nick} ->
             {next_state, logged, State};
-        {_Code, _Msg} ->
-            {next_state, logged, State};
         _ -> {next_state, logged, State}
     end.
 
 ready({recv, Msg}, State) ->
-    Res = utils:irc_parse(string:tokens(Msg, ": ")),
+    Res = utils:irc_parse(Msg), %string:tokens(Msg, ": ")),
     case Res of
         %TODO: delete these two lines
         {cmd, _Nick, "crash", _Args} ->
             _ = 1/0;
         {cmd, Nick, Cmd, Args} -> 
-            %now, we should notify the plugins
             gen_server:cast(State#state.pluginmgr, {cmd, Nick, Cmd, Args});
         {control, ping, Data} ->
             utils:debug("Received PING, replying"),
@@ -78,7 +76,7 @@ code_change(_Old, _, _, _) ->
     utils:debug("Code change event received"),
     ok.
 
-%this collects all the answers to be sent with PRIVMSG from the plugins.
+%this collects all the responses from the plugins.
 handle_event({reply_priv, Msg}, State, Data) -> 
     send_priv_msg(Data, Msg),
     {next_state, State, Data};
@@ -108,7 +106,7 @@ handle_sync_event(_Event, _From, StateName, Data) ->
     {next_state, StateName, Data}.
 
 terminate(_Reason, CurrentState, CData) ->
-    utils:debug("Received error, saving state... ~w and ~w", [CurrentState, CData]),
+    utils:debug("Encountered error, saving state... ~w and ~w", [CurrentState, CData]),
     send_priv_msg(CData, "Bot encountered an error, restarting..."),
     ets:insert(state_storage, {irc_bot, CurrentState, CData}),
     ok.
@@ -121,13 +119,6 @@ start_process(Sup, Name, F, {M, A}) ->
             Pid;
         _ -> none
     end.
-
-get_server(State) ->
-    State#state.connection.
-get_nick(State) ->
-    State#state.nick.
-get_channel(State) ->
-    State#state.channel.
 
 send_priv_msg(State, Msg) ->
     gen_server:cast(State#state.connection, {send, ["PRIVMSG ", State#state.channel, " :", Msg]}).

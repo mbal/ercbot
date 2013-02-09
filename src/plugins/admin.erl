@@ -4,6 +4,10 @@
 -record(state, {bot, admins=settings:admin()}).
 
 -export([init/1, handle_event/2, terminate/2, handle_call/2, handle_info/2, code_change/3]).
+-export([name/0, short_description/0]).
+
+name() -> "admin".
+short_description() -> "perform simple administrative tasks".
 
 init([Bot]) ->
     case ets:lookup(state_storage, ?MODULE) of
@@ -44,7 +48,6 @@ handle_command(State, Args) when length(Args) =< 2 ->
             irc_bot_api:send_priv_msg(State#state.bot, get_admins(State)), State;
         ["cnick", NewNick] ->
             irc_bot_api:change_nick(State#state.bot, NewNick), State;
-        %irc_bot_api:send_cmd_msg(State#state.bot, "NICK " ++ NewNick), State;
         ["restart"] ->
             irc_bot_api:send_priv_msg(State#state.bot, "Recompiling "
                 "and restarting"),

@@ -1,32 +1,27 @@
 -module(utils).
--define(BOT_CMD, settings:cmd_string()).
-
 -export([irc_parse/1, debug/1, debug/2]).
 
-irc_parse([User, "PRIVMSG", _, CmdString, Command]) ->
-    case CmdString == ?BOT_CMD of
-        true ->
-            Nick = lists:nth(1, string:tokens(User, "!")),
-            Cmd = lists:nth(1, string:tokens(Command, "\r\n")),
-            {cmd, Nick, Cmd, []};
-        false -> ok
-    end;
+irc_parse(Data) ->
+    Tok = string:tokens(Data, ": "),
+    tokens_parse(Tok).
 
-irc_parse([User, "PRIVMSG", _, CmdString, Command | Rest]) ->
-    case CmdString == ?BOT_CMD of
-        true ->
-            Nick = lists:nth(1, string:tokens(User, "!")),
-            Cmd = lists:nth(1, string:tokens(Command, "\r\n")),
-            Rst = lists:map(fun(X) -> lists:nth(1, string:tokens(X, "\r\n")) end, Rest),
-            {cmd, Nick, Cmd, Rst};
-        _ -> ok
+tokens_parse([User, "PRIVMSG", _, CmdString, Text | Rest]) ->
+    Nick = lists:nth(1, string:tokens(User, "!")),
+    case CmdString == settings:cmd_string() of
+	true -> parse_cmd(Nick, Text, Rest);
+	false -> ok
     end;
-irc_parse([_, "376" | _]) ->
-    debug("Matching join event"),
+tokens_parse([_, "376" | _]) ->
     {control, join};
-irc_parse(["PING"|Rest]) ->
+tokens_parse(["PING" | Rest]) ->
     {control, ping, Rest};
-irc_parse(_) -> ok.
+tokens_parse(_) ->
+    ok.
+
+parse_cmd(Nick, Cmd, Args) ->
+    Command = lists:nth(1, string:tokens(Cmd, "\r\n")),
+    ArgList = lists:map(fun(X) -> lists:nth(1, string:tokens(X, "\r\n")) end, Args),
+    {cmd, Nick, Command, ArgList}.
 
 debug(Msg) ->
     io:format("[debug>]" ++ Msg ++ "~n").
