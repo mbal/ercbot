@@ -29,13 +29,3 @@ debug(Msg) ->
 debug(Msg, FmtArgs) ->
     io:format("[debug>]" ++ Msg ++ "~n", FmtArgs).
 
-reload(M) ->
-    code:purge(M),
-    code:soft_purge(M),
-    {module, M} = code:load_file(M),
-    {ok, M}.
-
-reload_all() ->
-    Modules = [M || {M, P} <- code:all_loaded(), 
-		    is_list(P) andalso string:str(P, "c:\\users\\utente\\ircb4\\ebin") > 0],
-    [reload(M) || M <- Modules].
