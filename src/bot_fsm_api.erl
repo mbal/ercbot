@@ -1,6 +1,8 @@
 -module(bot_fsm_api).
--export([change_nick/2, send_priv_msg/2, send_cmd_msg/2]).
+-export([change_nick/2, send_priv_msg/2, send_cmd_msg/2, restart/1]).
 
+restart(Bot) ->
+    gen_fsm:send_all_state_event(Bot, restart).
 change_nick(Bot, Nick) ->
     %change the state variable in irc_bot.erl
     gen_fsm:send_all_state_event(Bot, {change_nick, Nick}).

@@ -9,7 +9,7 @@ start_link(Bot, Supervisor) ->
     utils:debug("~w starting...", [?MODULE]),
     gen_server:start_link({local, ?MODULE}, ?MODULE, [Bot, Supervisor], []).
 
-%gen_server's api.
+%%gen_server's api.
 init([Bot, Supervisor]) ->
     {ok, Plugins} = gen_event:start_link({local, evt_mgr}),
     lists:foreach(fun(X) -> gen_event:add_sup_handler(Plugins, X, [Bot]) end,
@@ -19,13 +19,13 @@ init([Bot, Supervisor]) ->
 handle_call(_Request, _From, State) ->
     {ok, State}.
 
-%we handle the "help" command here to be able to get the list of all
-%the loaded plugins, so we can simply call plugin:name() - plugin:description()
-handle_cast({cmd, Nick, "help", _Args}, State) ->
-    irc_bot_api:send_priv_msg(State#state.bot, [settings:bname(), "(v", 
-						settings:version(), ") ",
-						settings:whois()]),
-    lists:foreach(fun(X) -> irc_bot_api:send_priv_msg(State#state.bot,
+%%we handle the "help" command here to be able to get the list of all
+%%the loaded plugins, so we can simply call plugin:name() - plugin:description()
+handle_cast({cmd, _Nick, "help", _Args}, State) ->
+    bot_fsm_api:send_priv_msg(State#state.bot, 
+			      [settings:bname(), "(v", settings:version(), ") ",
+			       settings:whois()]),
+    lists:foreach(fun(X) -> bot_fsm_api:send_priv_msg(State#state.bot,
 						      [X:name(), ": ", X:short_description()])
 		  end, settings:plugins()),
     {noreply, State};
@@ -35,21 +35,24 @@ handle_cast({cmd, Nick, Command, Args}, State) ->
     gen_event:notify(State#state.plug_event, {cmd, Nick, Command, Args}),
     {noreply, State};
 
-%well, if other possible messages come to mind, we'll add them later
+handle_cast(terminate, State) ->
+    lists:foreach(fun(X) -> gen_event:delete_handler(State#state.plug_event, X, shutdown) end, settings:plugins()),
+    {stop, State};
+%%well, if other possible messages come to mind, we'll add them later
 handle_cast({new_bot, Pid}, State) ->
     {noreply, State#state{bot=Pid}}.
 
-handle_info({gen_event_EXIT, Handler, Reason}, State) ->
+handle_info({gen_event_EXIT, Handler, _Reason}, State) ->
     utils:debug("a plugin crashed: ~w", [Handler]),
     gen_event:add_sup_handler(State#state.plug_event, Handler, [State#state.bot]),
     Msg = lists:flatten(io_lib:format("Plugin ~w crashed. Restarting...", [Handler])),
-    irc_bot_api:send_priv_msg(State#state.bot, Msg),
+    bot_fsm_api:send_priv_msg(State#state.bot, Msg),
     {noreply, State};
 handle_info(_Req, State) ->
     io:format("~w", [_Req]),
     {noreply, State}.
 
-terminate(_Reason, State) ->
+terminate(_Reason, _State) ->
     utils:debug("~w terminating", [?MODULE]),
     ok.
 

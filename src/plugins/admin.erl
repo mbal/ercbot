@@ -12,7 +12,7 @@ short_description() -> "perform simple administrative tasks".
 init([Bot]) ->
     case ets:lookup(state_storage, ?MODULE) of
         [{?MODULE, StateData}] ->
-            {ok, StateData};
+            {ok, StateData#state{bot=Bot}};
         [] ->
             {ok, #state{bot=Bot}}
     end.
@@ -49,10 +49,12 @@ handle_command(State, Args) when length(Args) =< 2 ->
         ["cnick", NewNick] ->
             bot_fsm_api:change_nick(State#state.bot, NewNick), State;
         ["restart"] ->
-            bot_fsm_api:send_priv_msg(State#state.bot, "Recompiling "
-                "and restarting"),
-            %bot_fsm_api:restart_from_config(State#state.bot),
-            bot_fsm_api:send_priv_msg(State#state.bot, "ok"), State;
+            bot_fsm_api:send_priv_msg(State#state.bot, "Restarting"),
+            bot_fsm_api:restart(State#state.bot), State;
+        %bot_fsm_api:send_priv_msg(State#state.bot, "ok"), State;
+        ["shutdown"] ->
+            bot_fsm_api:send_priv_msg(State#state.bot, "Goodbye, suckers!"),
+            bot_fsm_api:shutdown(State#state.bot), State;
         ["crash"] ->
             _ = 1/0,
             State;

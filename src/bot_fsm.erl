@@ -8,7 +8,7 @@
 -define(CHILD_SPEC(NAME, M, F, A), 
     {NAME,
         {M, F, A},
-        permanent,
+        temporary,
         1000,
         worker,
         [M]}).
@@ -77,6 +77,14 @@ code_change(_Old, _, _, _) ->
     ok.
 
 %this collects all the responses from the plugins.
+handle_event(restart, State, Data) ->
+    ok = supervisor:terminate_child(Data#state.supervisor, irc_conn),
+    gen_server:cast(terminate, Data#state.pluginmgr),
+    ok = supervisor:terminate_child(Data#state.supervisor, irc_plug),
+    io:format("~w~n", [supervisor:which_children(Data#state.supervisor)]),
+    %supervisor:restart_child(Data#state.supervisor, self()),
+    {stop, restart, #state{server=Data#state.server, supervisor=Data#state.supervisor}};
+    %{next_state, State, Data};
 handle_event({reply_priv, Msg}, State, Data) -> 
     send_priv_msg(Data, Msg),
     {next_state, State, Data};
@@ -95,6 +103,7 @@ handle_event(Evt, State, Data) ->
 
 handle_info({start_connection, Sup}, StateName, State) ->
     %in this function the bot starts all the other child of the supervisor
+    io:format("starting up children"),
     ConPid = start_process(Sup, irc_conn, start_link, ?CHILD_IRC_CONN(State#state.server, Sup)),
     PlgPid = start_process(Sup, irc_plug, start_link, ?CHILD_IRC_PLUGIN(Sup)),
     {next_state, StateName, State#state{pluginmgr=PlgPid, connection=ConPid}};
@@ -105,19 +114,27 @@ handle_info(_Msg, State, Data) ->
 handle_sync_event(_Event, _From, StateName, Data) -> 
     {next_state, StateName, Data}.
 
-terminate(_Reason, CurrentState, CData) ->
-    utils:debug("Encountered error, saving state... ~w and ~w", [CurrentState, CData]),
-    send_priv_msg(CData, "Bot encountered an error, restarting..."),
-    ets:insert(state_storage, {irc_bot, CurrentState, CData}),
+terminate(Reason, CurrentState, CData) ->
+    case Reason of
+	restart ->
+	    ets:insert(state_storage, {?MODULE, idle, CData}),
+	    utils:debug("got `restart` message~n");
+	_ -> 
+	    utils:debug("Encountered error, saving state... ~w and ~w ~w", [Reason, CurrentState, CData]),
+	    send_priv_msg(CData, "Bot encountered an error, restarting..."),
+	    ets:insert(state_storage, {?MODULE, CurrentState, CData})
+    end,
     ok.
 
 start_process(Sup, Name, F, {M, A}) ->
     case supervisor:start_child(Sup, ?CHILD_SPEC(Name, M, F, A)) of
         {ok, Pid} -> Pid;
         {error, {already_started, Pid}} ->
+	    io:format("already started children"),
             gen_server:cast(Pid, {new_bot, self()}),
             Pid;
-        _ -> none
+        _ -> 
+	    io:format("can't pattern match"),none
     end.
 
 send_priv_msg(State, Msg) ->

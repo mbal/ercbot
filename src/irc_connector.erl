@@ -47,7 +47,7 @@ handle_info(_Req, State) ->
 
 terminate(_Reason, State) ->
     utils:debug("irc_connector terminating"),
-    gen_fsm:send_event(State#state.processor, terminating),
+    %gen_fsm:send_event(State#state.processor, terminating),
     %error reporting is automagically issued, if the reason
     %is not normal or shutdown.
     ok.
