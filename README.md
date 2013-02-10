@@ -1,7 +1,7 @@
 ercbot
 ======
 
-an extensible Erlang IRC bot (also, my first Erlang project ever).
+an __E__xtensible __ER__lang I__RC bot __(yes, the acronym is overlapping, also, my first Erlang project ever).
 
 Customizations
 --------------
