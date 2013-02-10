@@ -1,0 +1,12 @@
+{application, bot,
+ [
+  {description, ""},
+  {vsn, "1"},
+  {registered, []},
+  {applications, [
+                  kernel,
+                  stdlib
+                 ]},
+  {mod, { bot_app, []}},
+  {env, []}
+ ]}.

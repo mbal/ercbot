@@ -1,5 +1,6 @@
 -module(utils).
 -export([irc_parse/1, debug/1, debug/2]).
+-export([reload/1, reload_all/0]).
 
 irc_parse(Data) ->
     Tok = string:tokens(Data, ": "),
@@ -27,3 +28,14 @@ debug(Msg) ->
     io:format("[debug>]" ++ Msg ++ "~n").
 debug(Msg, FmtArgs) ->
     io:format("[debug>]" ++ Msg ++ "~n", FmtArgs).
+
+reload(M) ->
+    code:purge(M),
+    code:soft_purge(M),
+    {module, M} = code:load_file(M),
+    {ok, M}.
+
+reload_all() ->
+    Modules = [M || {M, P} <- code:all_loaded(), 
+		    is_list(P) andalso string:str(P, "c:\\users\\utente\\ircb4\\ebin") > 0],
+    [reload(M) || M <- Modules].

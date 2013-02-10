@@ -21,8 +21,8 @@ memory() ->
     lists:flatten(io_lib:format("memory: ~p kb", [M / 1000])).
 
 handle_event({cmd, _, "uptime", _Args}, State) ->
-    irc_bot_api:send_priv_msg(State#state.bot, uptime()),
-    irc_bot_api:send_priv_msg(State#state.bot, memory()),
+    bot_fsm_api:send_priv_msg(State#state.bot, uptime()),
+    bot_fsm_api:send_priv_msg(State#state.bot, memory()),
     {ok, State};
 handle_event(_Req, State) ->
     {ok, State}.

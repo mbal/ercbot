@@ -6,12 +6,12 @@
 version() -> "1.3".
 bname() -> "ercbot".
 
-nick() -> "name[bot]".
+nick() -> "ercbot[bot]".
 channel() -> "#channel".
 server() -> {"irc.freenode.net", 6667}.
 whois() -> "An extensible Erlang bot, written by mbal".
 
-admin() -> ["admin"].
+admin() -> ["mbal"].
 
 cmd_string() -> "!bot".
 

@@ -23,7 +23,7 @@ handle_event({cmd, Nick, "admin", Args}, State) ->
             Res = handle_command(State, Args);
         false ->
             Res = State,
-            irc_bot_api:send_priv_msg(State#state.bot, "You're not on my list, sorry")
+            bot_fsm_api:send_priv_msg(State#state.bot, "You're not on my list, sorry")
     end,
     {ok, Res};
 handle_event(_Req, State) ->
@@ -45,19 +45,19 @@ handle_command(State, Args) when length(Args) =< 2 ->
         ["rem", User] ->
             State#state{admins=lists:delete(User, State#state.admins)};
         ["list"] ->
-            irc_bot_api:send_priv_msg(State#state.bot, get_admins(State)), State;
+            bot_fsm_api:send_priv_msg(State#state.bot, get_admins(State)), State;
         ["cnick", NewNick] ->
-            irc_bot_api:change_nick(State#state.bot, NewNick), State;
+            bot_fsm_api:change_nick(State#state.bot, NewNick), State;
         ["restart"] ->
-            irc_bot_api:send_priv_msg(State#state.bot, "Recompiling "
+            bot_fsm_api:send_priv_msg(State#state.bot, "Recompiling "
                 "and restarting"),
-            %irc_bot_api:restart_from_config(State#state.bot),
-            irc_bot_api:send_priv_msg(State#state.bot, "ok"), State;
+            %bot_fsm_api:restart_from_config(State#state.bot),
+            bot_fsm_api:send_priv_msg(State#state.bot, "ok"), State;
         ["crash"] ->
             _ = 1/0,
             State;
         _ ->
-            irc_bot_api:send_priv_msg(State#state.bot, "Unrecognized or incomplete option"), State
+            bot_fsm_api:send_priv_msg(State#state.bot, "Unrecognized or incomplete option"), State
     end;
 handle_command(State, _Args) ->
-    irc_bot_api:send_priv_msg(State#state.bot, "Too many options").
+    bot_fsm_api:send_priv_msg(State#state.bot, "Too many options").

@@ -13,7 +13,7 @@ init([Bot]) ->
 
 handle_event({cmd, _, "time", _Args}, State) ->
     utils:debug(get_time()),
-    irc_bot_api:send_priv_msg(State#state.bot, int_to_str(unix_time()) ++
+    bot_fsm_api:send_priv_msg(State#state.bot, int_to_str(unix_time()) ++
         " or, if you don't get epochs: " ++ get_time()),
     {ok, State};
 handle_event(_Req, State) ->
