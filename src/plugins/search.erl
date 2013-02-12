@@ -56,8 +56,9 @@ handle_info({http, {ReqId, Response}}, State) ->
 	    case Response of
 		{{_, 200, _}, _Head, Body} ->
 		    {match, M} = re:run(Body, "<a href=(.*?)>(.*?)</a>", [global, {capture, all, list}]),
-		    lists:foreach(fun(X) -> io:format("~p~n", [X]) end, M);
+		    Res = lists:sublist(M, 10),
 
+		    io:format("~p", [length(Res)]);
 		_ -> bot_fsm_api:send_priv_msg(State#state.bot, Nick ++ ", encountered unexplicable error")
 	    end
     end,
@@ -76,5 +77,5 @@ wiki_search(Term, Lang, Nick, Table) ->
     ets:insert(Table, {ReqId, Nick, wiki}).
 google_search(Term, Nick, Table) ->
     Url = "http://www.google.com/search?q=" ++ http_uri:encode(Term),
-    {ok, ReqId} = httpc:request(get, {Url, [{"User-Agent", ?UA}]}, [], [{sync, false}]),
+    {ok, ReqId} = httpc:request(get, {Url, [{"User-Agent", ?UA}]}, [], [{sync, false}, {body_format, binary}]),
     ets:insert(Table, {ReqId, Nick, google}).
