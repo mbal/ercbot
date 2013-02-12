@@ -8,7 +8,7 @@
 name() -> "time".
 short_description() -> "exactly as it sounds. Tells the current time".
 
-init([Bot]) ->
+init([Bot, _]) ->
     {ok, #state{bot=Bot}}.
 
 handle_event({cmd, _, "time", _Args}, State) ->

@@ -1,7 +1,7 @@
 -module(admin).
 
 -behaviour(gen_event).
--record(state, {bot, admins=settings:admin()}).
+-record(state, {bot, admins=settings:admin(), parent}).
 
 -export([init/1, handle_event/2, terminate/2, handle_call/2, handle_info/2, code_change/3]).
 -export([name/0, short_description/0]).
@@ -9,12 +9,12 @@
 name() -> "admin".
 short_description() -> "perform simple administrative tasks".
 
-init([Bot]) ->
+init([Bot, Parent]) ->
     case ets:lookup(state_storage, ?MODULE) of
         [{?MODULE, StateData}] ->
-            {ok, StateData#state{bot=Bot}};
+            {ok, StateData#state{bot=Bot, parent=Parent}};
         [] ->
-            {ok, #state{bot=Bot}}
+            {ok, #state{bot=Bot, parent=Parent}}
     end.
 
 handle_event({cmd, Nick, "admin", Args}, State) ->
@@ -55,6 +55,9 @@ handle_command(State, Args) when length(Args) =< 2 ->
         ["shutdown"] ->
             bot_fsm_api:send_priv_msg(State#state.bot, "Goodbye, suckers!"),
             bot_fsm_api:shutdown(State#state.bot), State;
+        ["reload"] ->
+	    irc_plugin_mgr:reload_plugins(State#state.parent),
+	    State;
         ["crash"] ->
             _ = 1/0,
             State;
@@ -62,4 +65,5 @@ handle_command(State, Args) when length(Args) =< 2 ->
             bot_fsm_api:send_priv_msg(State#state.bot, "Unrecognized or incomplete option"), State
     end;
 handle_command(State, _Args) ->
-    bot_fsm_api:send_priv_msg(State#state.bot, "Too many options").
+    bot_fsm_api:send_priv_msg(State#state.bot, "Too many options"),
+    State.

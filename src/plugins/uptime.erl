@@ -8,7 +8,7 @@
 name() -> "uptime".
 short_description() -> "bunch of uninteresting facts about uptime and memory".
 
-init([Bot]) ->
+init([Bot, _]) ->
     {ok, #state{bot=Bot}}.
 
 uptime() ->
