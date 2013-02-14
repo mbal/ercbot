@@ -14,10 +14,7 @@ Compile the source with rebar
 
 Configuration
 --------------------
-The configuration is done in two ways. You can either:
-
-1. start the application and configure it with `conf_server:set_X`
-2. Edit the `settings.cfg` file, and then start the application.
+Edit the `settings.cfg` file, and then start the application.
 
 Plugins
 --------------------
