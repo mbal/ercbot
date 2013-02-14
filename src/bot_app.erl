@@ -7,8 +7,7 @@
 %% ===================================================================
 
 start(normal, []) ->
-    bot_sup:start_link(settings:nick(), settings:channel(),
-			      settings:server());
+    bot_sup:start_link();
 start(normal, [Nick, Channel, Server]) ->
     bot_sup:start_link(Nick, Channel, Server).
 

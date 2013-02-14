@@ -7,33 +7,33 @@
 
 %% gen_event callbacks
 -export([init/1, handle_event/2, handle_call/2, 
-	 handle_info/2, terminate/2, code_change/3]).
+         handle_info/2, terminate/2, code_change/3]).
 -export([name/0, short_description/0]).
 
-name() -> "search".
+name() -> "wiki/google".
 short_description() -> "search wikipedia or google for the given term".
 
--record(state, {bot, table}).
+-record(state, {table}).
 
-init([Bot, _]) ->
+init([]) ->
     inets:start(),
     ReqTab = ets:new(request_table, [set]),
-    {ok, #state{bot=Bot, table=ReqTab}}.
+    {ok, #state{table=ReqTab}}.
 
 handle_event({cmd, Nick, "wiki", ["lang", Lang | Args]}, State) ->
     Term = string:join(Args, " "),
     wiki_search(Term, Lang, Nick, State#state.table),
-    bot_fsm_api:send_priv_msg(State#state.bot, ?WIKITEXT(Term, Lang)),
+    plugin_api:send_priv_msg(?WIKITEXT(Term, Lang)),
     {ok, State};
 handle_event({cmd, Nick, "wiki", Args}, State) ->
     Term = string:join(Args, " "),
     wiki_search(Term, "en", Nick, State#state.table),
-    bot_fsm_api:send_priv_msg(State#state.bot, ?WIKITEXT(Term, "en")),
+    plugin_api:send_priv_msg(?WIKITEXT(Term, "en")),
     {ok, State};
 handle_event({cmd, Nick, "google", Args}, State) ->
     Term = string:join(Args, "+"),
     google_search(Term, Nick, State#state.table),
-    bot_fsm_api:send_priv_msg(State#state.bot, ?GOOGTEXT(Term)),
+    plugin_api:send_priv_msg(?GOOGTEXT(Term)),
     {ok, State};
 handle_event(_Evt, State) ->
     {ok, State}.
@@ -44,23 +44,23 @@ handle_call(_Request, State) ->
 handle_info({http, {ReqId, Response}}, State) ->
     [{ReqId, Nick, BackEnd}] = ets:lookup(State#state.table, ReqId),
     case BackEnd of
-	wiki ->
-	    case Response of
-		{{_, 302, _}, Head, _} ->
-		    Location = proplists:get_value("location", Head),
-		    bot_fsm_api:send_priv_msg(State#state.bot, Nick ++ ", here's the URL you wanted: " ++ Location);
-		_ -> 
-		    bot_fsm_api:send_priv_msg(State#state.bot, Nick ++ ", I couldn't find anything")
-	    end;
-	google ->
-	    case Response of
-		{{_, 200, _}, _Head, Body} ->
-		    {match, M} = re:run(Body, "<a href=(.*?)>(.*?)</a>", [global, {capture, all, list}]),
-		    Res = lists:sublist(M, 10),
+        wiki ->
+            case Response of
+                {{_, 302, _}, Head, _} ->
+                    Location = proplists:get_value("location", Head),
+                    plugin_api:send_priv_msg(Nick ++ ", here's the URL you wanted: " ++ Location);
+                _ -> 
+                    plugin_api:send_priv_msg(Nick ++ ", I couldn't find anything")
+            end;
+        google ->
+            case Response of
+                {{_, 200, _}, _Head, Body} ->
+                    Results = parse_google_results(Body, 3),
+                    plugin_api:send_priv_msg("First 3 result for your query: "),
+                    lists:foreach(fun([X]) -> plugin_api:send_priv_msg(X) end, Results);
 
-		    io:format("~p", [length(Res)]);
-		_ -> bot_fsm_api:send_priv_msg(State#state.bot, Nick ++ ", encountered unexplicable error")
-	    end
+                _ -> plugin_api:send_priv_msg([Nick, ", encountered unexplicable error"])
+            end
     end,
     ets:delete(State#state.table, ReqId),
     {ok, State};
@@ -73,9 +73,20 @@ code_change(_OldVsn, State, _Extra) ->
 
 wiki_search(Term, Lang, Nick, Table) ->
     Url = "http://" ++ Lang ++ ".wikipedia.org/w/index.php?search=" ++ http_uri:encode(Term),
-    {ok, ReqId} = httpc:request(get, {Url, [{"User-Agent", ?UA}]}, [{autoredirect, false}], [{sync, false}]),
+    {ok, ReqId} = httpc:request(get, {Url, [{"User-Agent", ?UA}]}, 
+                                [{autoredirect, false}], [{sync, false}]),
     ets:insert(Table, {ReqId, Nick, wiki}).
 google_search(Term, Nick, Table) ->
     Url = "http://www.google.com/search?q=" ++ http_uri:encode(Term),
-    {ok, ReqId} = httpc:request(get, {Url, [{"User-Agent", ?UA}]}, [], [{sync, false}, {body_format, binary}]),
+    {ok, ReqId} = httpc:request(get, {Url, [{"User-Agent", ?UA}]}, [], 
+                                [{sync, false}]),
     ets:insert(Table, {ReqId, Nick, google}).
+
+parse_google_results(WebPage, N) ->
+%%%kids, don't try this at home! Parsing html with regexes is bad.
+    {match, Res} = re:run(WebPage, "<li class=\"g\".*?><div class=.*?><h3 "
+                          "class=\"r\".*?><a.*?href=\"/url\\?q=(.*?)"
+                          "&amp;(?:.*?)\">.*?</a></h3>.*?</li>", 
+                          [global, {capture, all_but_first, list}]),
+    lists:sublist(Res, N).
+

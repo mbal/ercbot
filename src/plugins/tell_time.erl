@@ -1,19 +1,18 @@
 -module(tell_time).
 
 -behaviour(gen_event).
--record(state, {bot}).
 -export([init/1, handle_event/2, terminate/2, handle_call/2, handle_info/2, code_change/3]).
 -export([name/0, short_description/0, get_time/0]).
 
 name() -> "time".
-short_description() -> "exactly as it sounds. Tells the current time".
+short_description() -> "exactly as it sounds.".
 
-init([Bot, _]) ->
-    {ok, #state{bot=Bot}}.
+init([]) ->
+    {ok, {}}.
 
 handle_event({cmd, _, "time", _Args}, State) ->
     utils:debug(get_time()),
-    bot_fsm_api:send_priv_msg(State#state.bot, int_to_str(unix_time()) ++
+    plugin_api:send_priv_msg(int_to_str(unix_time()) ++
         " or, if you don't get epochs: " ++ get_time()),
     {ok, State};
 handle_event(_Req, State) ->

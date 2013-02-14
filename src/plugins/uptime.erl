@@ -1,15 +1,14 @@
 -module(uptime).
 
 -behaviour(gen_event).
--record(state, {bot}).
 -export([init/1, handle_event/2, terminate/2, handle_call/2, handle_info/2, code_change/3]).
 -export([name/0, short_description/0]).
 
 name() -> "uptime".
-short_description() -> "bunch of uninteresting facts about uptime and memory".
+short_description() -> "couple of uninteresting facts about uptime and memory".
 
-init([Bot, _]) ->
-    {ok, #state{bot=Bot}}.
+init([]) ->
+    {ok, {}}.
 
 uptime() ->
     {UpTime, _} = erlang:statistics(wall_clock),
@@ -21,8 +20,8 @@ memory() ->
     lists:flatten(io_lib:format("memory: ~p kb", [M / 1000])).
 
 handle_event({cmd, _, "uptime", _Args}, State) ->
-    bot_fsm_api:send_priv_msg(State#state.bot, uptime()),
-    bot_fsm_api:send_priv_msg(State#state.bot, memory()),
+    plugin_api:send_priv_msg(uptime()),
+    plugin_api:send_priv_msg(memory()),
     {ok, State};
 handle_event(_Req, State) ->
     {ok, State}.

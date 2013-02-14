@@ -6,11 +6,13 @@ irc_parse(Data) ->
     Tok = string:tokens(Data, ": "),
     tokens_parse(Tok).
 
+%%hideous kludge
 tokens_parse([User, "PRIVMSG", _, CmdString, Text | Rest]) ->
     Nick = lists:nth(1, string:tokens(User, "!")),
-    case CmdString == settings:cmd_string() of
-	true -> parse_cmd(Nick, Text, Rest);
-	false -> ok
+    String = conf_server:lookup(cmd_string),
+    case CmdString == String of
+        true -> parse_cmd(Nick, Text, Rest);
+        false -> ok
     end;
 tokens_parse([_, "376" | _]) ->
     {control, join};

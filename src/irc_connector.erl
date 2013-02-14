@@ -1,23 +1,25 @@
 -module(irc_connector).
 -behaviour(gen_server).
 -define(CRNL, "\r\n").
--export([start_link/3]).
+-export([start_link/2]).
 -export([code_change/3, handle_call/3, handle_cast/2, handle_info/2, init/1, terminate/2]).
+-export([send_priv_msg/1]).
 
--record(state, {supervisor, server, bot, socket, processor}).
+-record(state, {supervisor, server, bot, socket}).
 
-start_link({_Server, _Port}=Where, Parent, Supervisor) ->
+start_link(Bot, Supervisor) ->
     utils:debug("~w starting...", [?MODULE]),
-    gen_server:start_link({local, ?MODULE}, ?MODULE, [Where, Parent, Supervisor], []).
+    gen_server:start_link({local, ?MODULE}, ?MODULE, [Bot, Supervisor], []).
 
 %gen_server's api.
-init([{Server, Port}, Parent, Processor]) ->
+init([Bot, Supervisor]) ->
+    {Server, Port} = conf_server:lookup(server),
     case gen_tcp:connect(Server, Port, [{packet, line}]) of
         {ok, Socket} -> 
-            gen_fsm:send_event(Parent, connected),
-            {ok, #state{server=Server, bot=Parent, socket=Socket,
-                    processor=Parent, supervisor=Processor}};
-        _ -> gen_fsm:send_event(Parent, connection_failed)
+            gen_fsm:send_event(Bot, connected),
+            {ok, #state{server=Server, bot=Bot, socket=Socket,
+                        supervisor=Supervisor}};
+        _ -> gen_fsm:send_event(Bot, connection_failed)
     end.
 
 %this bot doesn't handle call, everything should be a
@@ -28,15 +30,14 @@ handle_call(_Request, _From, State) ->
 handle_cast({send, Data}, State) ->
     gen_tcp:send(State#state.socket, Data ++ ?CRNL),
     {noreply, State};
-%well, if other possible messages come to mind, we'll add them later
 handle_cast({new_bot, Pid}, State) ->
-    {noreply, State#state{bot=Pid, processor=Pid}};
+    {noreply, State#state{bot=Pid}};
 handle_cast(_Req, State) ->
     {noreply, State}.
 
 handle_info({tcp, _Socket, Data}, State) ->
     Lines = string:tokens(Data, ?CRNL),
-    send_message(State#state.processor, Lines),
+    send_message(State#state.bot, Lines),
     {noreply, State};
 handle_info({tcp_closed, _Socket}, State) ->
     utils:debug("Connection closed."),
@@ -45,7 +46,7 @@ handle_info(_Req, State) ->
     utils:debug("~w ~w", [_Req, State]),
     {noreply, State}.
 
-terminate(_Reason, State) ->
+terminate(_Reason, _State) ->
     utils:debug("irc_connector terminating"),
     %gen_fsm:send_event(State#state.processor, terminating),
     %error reporting is automagically issued, if the reason
@@ -63,3 +64,6 @@ send_message(_, []) ->
 send_message(Dest, [Line|Rest]) ->
     gen_fsm:send_event(Dest, {recv, Line}),
     send_message(dest, Rest).
+
+send_priv_msg(Msg) ->
+    gen_server:call(?MODULE, {send, Msg}).

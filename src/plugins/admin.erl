@@ -1,7 +1,7 @@
 -module(admin).
 
 -behaviour(gen_event).
--record(state, {bot, admins=settings:admin(), parent}).
+-record(state, {parent, admins}).
 
 -export([init/1, handle_event/2, terminate/2, handle_call/2, handle_info/2, code_change/3]).
 -export([name/0, short_description/0]).
@@ -9,12 +9,13 @@
 name() -> "admin".
 short_description() -> "perform simple administrative tasks".
 
-init([Bot, Parent]) ->
+init([]) ->
     case ets:lookup(state_storage, ?MODULE) of
         [{?MODULE, StateData}] ->
-            {ok, StateData#state{bot=Bot, parent=Parent}};
+            {ok, StateData};
         [] ->
-            {ok, #state{bot=Bot, parent=Parent}}
+            Admins = conf_server:lookup(admin),
+            {ok, #state{admins=Admins}}
     end.
 
 handle_event({cmd, Nick, "admin", Args}, State) ->
@@ -23,7 +24,7 @@ handle_event({cmd, Nick, "admin", Args}, State) ->
             Res = handle_command(State, Args);
         false ->
             Res = State,
-            bot_fsm_api:send_priv_msg(State#state.bot, "You're not on my list, sorry")
+            plugin_api:send_priv_msg(State#state.parent, "You're not on my list, sorry")
     end,
     {ok, Res};
 handle_event(_Req, State) ->
@@ -40,30 +41,38 @@ get_admins(State) -> string:join(State#state.admins, ", ").
 
 handle_command(State, Args) when length(Args) =< 2 ->
     case Args of
-        ["add", User] -> 
-            State#state{admins=[User|State#state.admins]};
+        ["add", User] ->
+            NAdminList = [User|State#state.admins],
+            conf_server:update(admins, NAdminList),
+            State#state{admins=NAdminList};
         ["rem", User] ->
-            State#state{admins=lists:delete(User, State#state.admins)};
+            NAdminList = lists:delete(User, State#state.admins),
+            conf_server:update(admins, NAdminList),
+            State#state{admins=NAdminList};
         ["list"] ->
-            bot_fsm_api:send_priv_msg(State#state.bot, get_admins(State)), State;
+            plugin_api:send_priv_msg(get_admins(State)), 
+            State;
         ["cnick", NewNick] ->
-            bot_fsm_api:change_nick(State#state.bot, NewNick), State;
+            plugin_api:change_nick(NewNick),
+            State;
         ["restart"] ->
-            bot_fsm_api:send_priv_msg(State#state.bot, "Restarting"),
-            bot_fsm_api:restart(State#state.bot), State;
-        %bot_fsm_api:send_priv_msg(State#state.bot, "ok"), State;
+            plugin_api:send_priv_msg("Restarting"),
+            plugin_api:restart_bot(), 
+            State;
         ["shutdown"] ->
-            bot_fsm_api:send_priv_msg(State#state.bot, "Goodbye, suckers!"),
-            bot_fsm_api:shutdown(State#state.bot), State;
+            plugin_api:send_priv_msg("Goodbye, suckers!"),
+            plugin_api:shutdown_bot(), 
+            State;
         ["reload"] ->
-	    irc_plugin_mgr:reload_plugins(State#state.parent),
-	    State;
+            plugin_api:reload_plugins(),
+            State;
         ["crash"] ->
             _ = 1/0,
             State;
         _ ->
-            bot_fsm_api:send_priv_msg(State#state.bot, "Unrecognized or incomplete option"), State
+            plugin_api:send_priv_msg("Unrecognized or incomplete option"),
+            State
     end;
 handle_command(State, _Args) ->
-    bot_fsm_api:send_priv_msg(State#state.bot, "Too many options"),
+    plugin_mgr_api:send_priv_msg("Too many options"),
     State.
