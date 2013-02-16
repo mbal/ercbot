@@ -76,11 +76,7 @@ code_change(_Old, _, _, _) ->
     ok.
 
 %%this collects all the responses from the plugins.
-%%handle_event(shutdown, _State, Data) ->
-%%    gen_server:cast(terminate, Data#state.pluginmgr),
-%%    ok = supervisor:terminate_child(Data#state.supervisor, irc_plug),
-%%    ok = supervisor:terminate_child(Data#state.supervisor, irc_conn),
-%%    {stop, shutdown, Data};
+
 handle_event({reply_priv, Msg}, State, Data) -> 
     send_priv_msg(Data, Msg),
     {next_state, State, Data};
@@ -136,7 +132,7 @@ terminate(Reason, CurrentState, CData) ->
             utils:debug("got `shutdown` message~n"),
             application:stop(bot);
         _ -> 
-            utils:debug("Encountered error, saving state... ~w and ~w ~w", [Reason, CurrentState, CData]),
+            utils:debug("Encountered error, saving state... ~w and ~w", [CurrentState, CData]),
             send_priv_msg(CData, "Bot encountered an error, restarting..."),
             ets:insert(state_storage, {?MODULE, CurrentState, CData})
     end,
@@ -148,7 +144,7 @@ start_process(Sup, Name, F, {M, A}) ->
         {error, {already_started, Pid}} ->
             gen_server:cast(Pid, {new_bot, self()}),
             Pid;
-        What -> ok
+        _ -> ok
     end.
 
 send_priv_msg(State, Msg) ->
