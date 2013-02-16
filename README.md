@@ -1,7 +1,7 @@
 ercbot
 --------------------
 
-__E__xtensible __Er__lang I__RC BOT__ (overlapping acronym).
+__E__xtensible __Er__lang I __RC BOT__ (overlapping acronym).
 This is my first ever Erlang project.
 
 Configuration
