@@ -39,7 +39,7 @@ handle_event({cmd, _, "talk", ["init", K]}, State) ->
     end,
     {ok, NewState};
 handle_event({cmd, _, "talk", ["init"]}, State) ->
-    NewState = start_training(3, State),
+    NewState = #state{table=start_training(3, State)},
     {ok, NewState};
 
 %%handle_event({cmd, _, "talk", ["delete"]}, State) ->
