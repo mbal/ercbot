@@ -13,8 +13,7 @@ parse_file(FileObj, Order, Table, RemWords) ->
             {Tab2, RemainingWords} = parse_line(string:to_lower(Data), 
                                                 Order, Table, RemWords),
             parse_file(FileObj, Order, Tab2, RemainingWords);
-        Error -> io:format("~p~n", [Error]),
-                 Error
+        Error -> Error
     end.
 
 parse_line(Data, Order, Table, RemWords) ->
@@ -36,9 +35,9 @@ insert_ngram([_|Rest]=Words, Order, Table) ->
                                  [Post], Table),
             insert_ngram(Rest, Order, Table2);
         false ->
-            %%not always the line ends with the right number
-            %%of words; so we must return the remaining words to
-            %% the caller, which will pass them to parse_line
+            %%the line doesn't always ends with the right number
+            %%of words; so we must return the remaining words to the 
+            %%caller, which will pass them to the next call to parse_line
             {Table, Words}
     end.
 
@@ -51,16 +50,13 @@ generate_text(Length, Table, InitialState) ->
 generate_text_aux(Length, Table, [_|Rest]=PrevState, Acc) ->
     case length(Acc) > Length of
         true ->
-            io:format("end~n"),
             lists:reverse(Acc);
         false ->
             case dict:find(PrevState, Table) of
                 {ok, ListProbNextWords} ->
                     NextWord = random_choice(ListProbNextWords),
-                    io:format("~p~n", [NextWord]),
                     generate_text_aux(Length, Table, Rest ++ [NextWord], [NextWord | Acc]);
                 error -> 
-                    io:format("no such key in dict ~p~n", [PrevState]),
                     generate_text_aux(Length, Table, random_state(Table), Acc)
             end
     end.
