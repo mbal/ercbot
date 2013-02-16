@@ -1,12 +1,11 @@
 -module(utils).
 -export([irc_parse/1, debug/1, debug/2]).
--export([reload/1, reload_all/0]).
 
 irc_parse(Data) ->
     Tok = string:tokens(Data, ": "),
     tokens_parse(Tok).
 
-%%hideous kludge
+%%hideous kludge, but I cannot think of a better way.
 tokens_parse([User, "PRIVMSG", _, CmdString, Text | Rest]) ->
     Nick = lists:nth(1, string:tokens(User, "!")),
     String = conf_server:lookup(cmd_string),
@@ -16,6 +15,8 @@ tokens_parse([User, "PRIVMSG", _, CmdString, Text | Rest]) ->
     end;
 tokens_parse([_, "376" | _]) ->
     {control, join};
+tokens_parse([_, "433" | _]) ->
+    {control, change_nick}; 
 tokens_parse(["PING" | Rest]) ->
     {control, ping, Rest};
 tokens_parse(_) ->
@@ -30,14 +31,3 @@ debug(Msg) ->
     io:format("[debug>]" ++ Msg ++ "~n").
 debug(Msg, FmtArgs) ->
     io:format("[debug>]" ++ Msg ++ "~n", FmtArgs).
-
-reload(M) ->
-    code:purge(M),
-    code:soft_purge(M),
-    {module, M} = code:load_file(M),
-    {ok, M}.
-
-reload_all() ->
-    Modules = [M || {M, P} <- code:all_loaded(), 
-		    is_list(P) andalso string:str(P, "c:\\users\\utente\\ircb4\\ebin") > 0],
-    [reload(M) || M <- Modules].

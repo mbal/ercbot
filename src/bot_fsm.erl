@@ -51,19 +51,18 @@ logged({recv, Data}, State) ->
             utils:debug("Received PING, replying"),
             reply_ping(State, Data);
         {control, change_nick} ->
-            %%TODO: add code to change the nick
-            {next_state, logged, State};
+            Nick2 = conf_server:lookup(nick2),
+            send_msg(State, ["NICK ", Nick2]),
+            {next_state, logged, State#state{nick=Nick2}};
         _ -> {next_state, logged, State}
     end.
 
 ready({recv, Msg}, State) ->
     Res = utils:irc_parse(Msg), 
     case Res of
-        %%TODO: delete these two lines
         {cmd, _Nick, "crash", _Args} ->
             _ = 1/0;
         {cmd, Nick, Cmd, Args} -> 
-            io:format("got command"),
             gen_server:cast(State#state.plugin_mgr, {cmd, Nick, Cmd, Args});
         {control, ping, Data} ->
             utils:debug("Received PING, replying"),
@@ -118,8 +117,6 @@ handle_event(Evt, State, Data) ->
     {next_state, State, Data}.
 
 handle_info({start_connection, Sup}, StateName, State) ->
-    io:format("Starting children"),
-    io:format("~w", [supervisor:which_children(State#state.supervisor)]),
     ConPid = start_process(Sup, irc_conn, start_link, {irc_connector, [self(), Sup]}), 
     PlgPid = start_process(Sup, irc_plug, start_link, {plugin_mgr, [self()]}),
     {next_state, StateName, State#state{plugin_mgr=PlgPid, connection=ConPid}};
@@ -151,8 +148,7 @@ start_process(Sup, Name, F, {M, A}) ->
         {error, {already_started, Pid}} ->
             gen_server:cast(Pid, {new_bot, self()}),
             Pid;
-        What -> io:format("errore ~w", [What]),
-                ok
+        What -> ok
     end.
 
 send_priv_msg(State, Msg) ->

@@ -66,7 +66,8 @@ handle_info({http, {ReqId, Response}}, State) ->
     {ok, State};
 handle_info(_Info, State) ->
     {ok, State}.
-terminate(_Reason, _State) ->
+terminate(_Reason, State) ->
+    ets:delete(State#state.table),
     ok.
 code_change(_OldVsn, State, _Extra) ->
     {ok, State}.
