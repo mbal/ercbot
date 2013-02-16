@@ -13,7 +13,7 @@
 -behaviour(gen_server).
 
 %% API
--export([start_link/0, lookup/1, update/2, reload_config/0]).
+-export([start_link/1, lookup/1, update/2, reload_config/0]).
 %% gen_server callbacks
 -export([init/1, handle_call/3, handle_cast/2, handle_info/2,
          terminate/2, code_change/3]).
@@ -33,18 +33,14 @@ update(Tag, Value) ->
 reload_config() ->
     gen_server:cast(?SERVER, reload).
 
-start_link() ->
+start_link(FileName) ->
     utils:debug("~w starting...", [?MODULE]),
-    gen_server:start_link({local, ?SERVER}, ?MODULE, [], []).
+    gen_server:start_link({local, ?SERVER}, ?MODULE, [FileName], []).
 
 %%%===================================================================
 %%% gen_server callbacks
 %%%===================================================================
 
-init([]) ->
-    FName = "c:\\users\\utente\\ercbot\\src\\settings.cfg",
-    {ok, Conf} = file:consult(FName),
-    {ok, #state{configuration=Conf, filename=FName}};
 init([FName]) ->
     {ok, Conf} = file:consult(FName),
     {ok, #state{configuration=Conf, filename=FName}}.

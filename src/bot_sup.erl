@@ -2,7 +2,7 @@
 -behaviour(supervisor).
 
 %% API
--export([start_link/3, start_link/0]).
+-export([start_link/0, start_link/1]).
 %% Supervisor callbacks
 -export([init/1]).
 
@@ -11,39 +11,26 @@
 %% ===================================================================
 
 start_link() ->
-    ets:new(state_storage, [set, named_table, public]),
-    utils:debug("~w starting...", [?MODULE]),
-    supervisor:start_link({local, ?MODULE}, ?MODULE, []).
+    {ok, SetFile} = application:get_env(bot, settings_file),
+    start_link(SetFile).
 
-start_link(Nick, Channel, Server) ->
+start_link(SettingsFile) ->
     ets:new(state_storage, [set, named_table, public]),
     utils:debug("~w starting...", [?MODULE]),
-    supervisor:start_link({local, ?MODULE}, ?MODULE, [Nick, Channel, Server]).
+    supervisor:start_link({local, ?MODULE}, ?MODULE, [SettingsFile]).
 
 %% ===================================================================
 %% Supervisor callbacks
 %% ===================================================================
 
-init([]) ->
+init([SettingsFile]) ->
     {ok, { {one_for_one, 5, 10},
            [{config,
-             {conf_server, start_link, []},
+             {conf_server, start_link, [SettingsFile]},
              transient, 5000, worker, [conf_server]},
 
             {bot, 
              {bot_fsm, start_link, [self()]},
              transient, 5000, worker, [bot_fsm]}
             
-           ]}};
-
-init([Nick, Channel, Server]) ->
-    {ok, { {one_for_one, 5, 10},
-           [
-            {bot, 
-             {bot_fsm, start_link, [self(), Nick, Channel, Server]},
-             transient, 5000, worker, [bot_fsm]},
-            {config,
-             {conf_server, start_link, []},
-             transient, 5000, worker, [conf_server]}
            ]}}.
-
