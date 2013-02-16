@@ -8,8 +8,8 @@
 
 start(normal, []) ->
     bot_sup:start_link();
-start(normal, [Nick, Channel, Server]) ->
-    bot_sup:start_link(Nick, Channel, Server).
+start(normal, [SettingsFile]) ->
+    bot_sup:start_link(SettingsFile).
 
 stop(_State) ->
     ok.

@@ -1,13 +1,9 @@
 -module(bot).
--behaviour(application).
--export([start/2, stop/1]).
+-export([start/1, stop/0]).
 
-start(normal, []) ->
-    %load the settings from settings.erl
-    irc_supervisor:start_link(settings:nick(), settings:channel(),
-        settings:server());
-start(normal, [Nick, Channel, Server]) ->
-    irc_supervisor:start_link(Nick, Channel, Server).
+start(SettingsFile) ->
+    application:set_env(bot, settings_file, SettingsFile),
+    application:start(bot).
 
-stop(_State) ->
-    ok.
+stop() ->
+    application:stop(bot).
