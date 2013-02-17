@@ -54,13 +54,21 @@ handle_cast({cmd, _, _, _} = Message, State) ->
     gen_event:notify(State#state.event_handler, Message),
     {noreply, State};
 handle_cast(reload, State) ->
-    lists:foreach(fun(X) -> gen_event:delete_handler(State#state.event_handler, X, shutdown) end,
+    lists:foreach(fun(X) -> gen_event:delete_handler(
+                              State#state.event_handler, X, shutdown) end,
                   State#state.loaded_plugins),
+
+    gen_fsm:send_all_state_event(State#state.bot, {reply_priv, "Stopped all plugins"}),
+
     %%let's get the new list of plugins.
     Plugins = conf_server:lookup(plugins),
-    lists:foreach(fun(X) -> gen_event:add_sup_handler(State#state.event_handler, X, []) end,
+    lists:foreach(fun(X) -> gen_event:add_sup_handler(
+                              State#state.event_handler, X, []) end,
                   Plugins),
+
+    gen_fsm:send_all_state_event(State#state.bot, {reply_priv, "Restarted everything!"}),
     {noreply, State#state{loaded_plugins=Plugins}};
+
 handle_cast(_, State) ->
     {noreply, State}.
 
@@ -69,7 +77,10 @@ handle_info({new_bot, Pid}, State) ->
     %%crashes. This module must receive the new pid in order to send answers
     {noreply, State#state{bot=Pid}};
 
+handle_info({gen_event_EXIT, _Handler, normal}, State) ->
+    {noreply, State};
 handle_info({gen_event_EXIT, Handler, _Reason}, State) ->
+    io:format("~p", [_Reason]),
     gen_fsm:send_all_state_event(State#state.bot, 
                                  {reply_priv, ["Plugin ", atom_to_list(Handler), 
                                                " crashed, restarting..."]}),

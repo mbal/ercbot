@@ -57,8 +57,6 @@ handle_event({cmd, _, "talk", []}, State) ->
     {ok, State};
 
 handle_event(_Event, State) ->
-    plugin_api:send_priv_msg("Usage: 1. !bot talk init <order> (only first time) 2."
-                             " !bot talk <length>"),
     {ok, State}.
 
 handle_call(_Request, State) ->
