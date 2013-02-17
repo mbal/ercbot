@@ -47,7 +47,7 @@ handle_command(State, Args) when length(Args) =< 2 ->
             State#state{admins=NAdminList};
         ["rem", User] ->
             NAdminList = lists:delete(User, State#state.admins),
-            conf_server:update(admins, NAdminList),
+            conf_server:update(admin, NAdminList),
             State#state{admins=NAdminList};
         ["list"] ->
             plugin_api:send_priv_msg(get_admins(State)), 
