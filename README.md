@@ -22,6 +22,23 @@ Compile the source with rebar
     [debug>]bot_sup starting...
     ...
 
+There are other two, equivalent, ways to start the application
+
+    $ erl -pa ebin -bot settings_file '"path/to/settings.cfg"'
+    Eshell V5.9.3.1 (abort with ^G)
+    1> bot:start().
+    ...
+
+or, you can specify the value of settings_file through a .config,
+    
+    $ cat file.config
+    [{bot, [{settings_file, "path/to/settings.cfg"}]}].
+    
+    $ erl -pa ebin -config file
+    Eshell V.5.9.3.1 (abort with ^G)
+    1> bot:start().
+    ...
+
 
 Plugins
 --------------------
