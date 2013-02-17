@@ -41,7 +41,7 @@ idle(_, State) ->
     {next_state, idle, State}.
 
 logged({recv, Data}, State) ->
-    Res = utils:irc_parse(Data), %string:tokens(Data, ": ")),
+    Res = utils:irc_parse(Data),
     case Res of
         {control, join} ->
             Channel = conf_server:lookup(channel),
@@ -72,7 +72,6 @@ ready({recv, Msg}, State) ->
     {next_state, ready, State}.
 
 code_change(_Old, _, _, _) -> 
-    utils:debug("Code change event received"),
     ok.
 
 %%this collects all the responses from the plugins.
@@ -101,11 +100,6 @@ handle_event(restart, _State, Data) ->
     {stop, restart, Data};
 
 handle_event(shutdown, _State, Data) ->
-    ok = supervisor:terminate_child(Data#state.supervisor, irc_conn),
-    ok = supervisor:delete_child(Data#state.supervisor, irc_conn),
-    gen_server:cast(Data#state.plugin_mgr, terminate),
-    ok = supervisor:terminate_child(Data#state.supervisor, irc_plug),
-    ok = supervisor:delete_child(Data#state.supervisor, irc_plug),
     {stop, shutdown, Data};
 
 handle_event(Evt, State, Data) ->
