@@ -43,9 +43,10 @@ handle_call(_Request, _From, State) ->
 
 %%this server handle only casts.
 handle_cast({cmd, _, "help", _Args}, State) ->
-    lists:foreach(fun(Plug) ->
-                          gen_fsm:send_all_state_event(State#state.bot,
-                                                       {reply_priv, Plug:name() ++ ": " ++ Plug:short_description()}) end,
+    lists:foreach(fun(Plug) -> gen_fsm:send_all_state_event(
+                                 State#state.bot,
+                                 {reply_priv, 
+                                  Plug:name() ++ ": " ++ Plug:short_description()}) end,
                   State#state.loaded_plugins),
     {noreply, State};
 handle_cast({cmd, _, _, _} = Message, State) ->
@@ -67,6 +68,14 @@ handle_info({new_bot, Pid}, State) ->
     %%this plugin receives the `new_bot` info when the underlying bot
     %%crashes. This module must receive the new pid in order to send answers
     {noreply, State#state{bot=Pid}};
+
+handle_info({gen_event_EXIT, Handler, _Reason}, State) ->
+    gen_fsm:send_all_state_event(State#state.bot, 
+                                 {reply_priv, ["Plugin ", atom_to_list(Handler), 
+                                               " crashed, restarting..."]}),
+    gen_event:add_sup_handler(State#state.event_handler, Handler, []),
+    {noreply, State};
+
 handle_info(_Info, State) ->
     {noreply, State}.
 

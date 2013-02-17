@@ -42,9 +42,6 @@ handle_event({cmd, _, "talk", ["init"]}, State) ->
     NewState = #state{table=start_training(3, State)},
     {ok, NewState};
 
-%%handle_event({cmd, _, "talk", ["delete"]}, State) ->
-%%    {ok, #state{table=dict:new()}};
-
 handle_event({cmd, _, "talk", [Len]}, State) ->
     {Length, _} = string:to_integer(Len),
     case (Length < 10) or (Length > 300) of
@@ -60,6 +57,8 @@ handle_event({cmd, _, "talk", []}, State) ->
     {ok, State};
 
 handle_event(_Event, State) ->
+    plugin_api:send_priv_msg("Usage: 1. !bot talk init <order> (only first time) 2."
+                             " !bot talk <length>"),
     {ok, State}.
 
 handle_call(_Request, State) ->
