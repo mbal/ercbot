@@ -115,7 +115,6 @@ ctcp_parse(Cmd) ->
 parse_cmd(_, []) ->
     priv_msg;
 parse_cmd(Nick, [Cmd|Args]=Coso) ->
-    io:format("~p", [Coso]),
     Command = lists:nth(1, string:tokens(Cmd, "\r\n")),
     ArgList = lists:map(fun(X) -> lists:nth(1, string:tokens(X, "\r\n")) end, Args),
     {cmd, Nick, Command, ArgList}.
