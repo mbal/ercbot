@@ -30,8 +30,10 @@ tokens_parse([User, "QUIT", _Channel]) ->
 tokens_parse([User, "JOIN", _Channel]) ->
     {control, user_join, User};
 
-tokens_parse([_, "353", _, _, Channel | UserList]) ->
-    {control, user_list, Channel, UserList};
+tokens_parse([_, "353", _, _, _Channel | UserList]) ->
+    {control, user_list, UserList};
+tokens_parse([_, "366" | _]) ->
+    {control, user_end};
 
 tokens_parse([_, "376" | _]) ->
     {control, join};
@@ -49,7 +51,7 @@ ctcp_parse(Cmd) ->
     case re:run(Cmd, "^\x01([a-zA-Z]*) ?([a-zA-Z0-9]*)?\x01$",
                 [global, {capture, all_but_first, list}]) of
         nomatch -> false;
-        {match, [[FirstG, SecondG]]} -> {FirstG, SecondG};
+        {match, [[FirstG, SecondG]]} -> {FirstG, SecondG}
     end.
 
 parse_cmd(Nick, [Cmd|Args]) ->
