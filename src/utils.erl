@@ -88,7 +88,7 @@ tokens_parse([User, "QUIT", _Channel]) ->
 tokens_parse([User, "JOIN", _Channel]) ->
     {control, user_join, User};
 tokens_parse([User, "NICK", NewNick]) ->
-    {control, user_nick, User, NewNick}.
+    {control, user_nick, User, NewNick};
 
 tokens_parse([_, "353", _, _, _Channel | UserList]) ->
     {control, user_list, UserList};
