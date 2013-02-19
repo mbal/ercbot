@@ -64,7 +64,6 @@ handle_cast(_Msg, State) ->
     {noreply, State}.
 
 handle_info({tcp, _Socket, Data}, State) ->
-    utils:debug("~s", [Data]),
     Lines = string:tokens(Data, ?CRNL),
     send_fsm_message(State#state.bot, Lines),
     {noreply, State};
