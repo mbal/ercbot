@@ -60,14 +60,12 @@ logged({recv, Data}, State) ->
 ready({recv, Msg}, State) ->
     Res = utils:irc_parse(Msg), 
     case Res of
-        {cmd, _Nick, "crash", _Args} ->
-            _ = 1/0;
-        {cmd, Nick, Cmd, Args} -> 
-            gen_server:cast(State#state.plugin_mgr, {cmd, Nick, Cmd, Args});
         {control, ping, Data} ->
-            utils:debug("Received PING, replying"),
             reply_ping(State, Data);
-        _ -> ok
+        {cmd, _, "crash", _} ->
+            _ = 1/0;
+        Message ->
+            gen_server:cast(State#state.plugin_mgr, Message)
     end,
     {next_state, ready, State}.
 
@@ -107,7 +105,7 @@ handle_event(Evt, State, Data) ->
     {next_state, State, Data}.
 
 handle_info({start_connection, Sup}, StateName, State) ->
-    ConPid = start_process(Sup, irc_conn, start_link, {irc_connector, [self(), Sup]}), 
+    ConPid = start_process(Sup, irc_conn, start_link, {irc_connector, [self()]}), 
     PlgPid = start_process(Sup, irc_plug, start_link, {plugin_mgr, [self()]}),
     {next_state, StateName, State#state{plugin_mgr=PlgPid, connection=ConPid}};
 
