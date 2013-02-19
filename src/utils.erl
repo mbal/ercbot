@@ -13,6 +13,9 @@ tokens_parse([User, "PRIVMSG", _, CmdString, Text | Rest]) ->
         true -> parse_cmd(Nick, Text, Rest);
         false -> ok
     end;
+tokens_parse([_, "353", _, _, Channel | UserList]) ->
+    %%first char of UserList is :
+    {control, user_list, Channel, UserList};
 tokens_parse([_, "376" | _]) ->
     {control, join};
 tokens_parse([_, "433" | _]) ->
