@@ -5,16 +5,15 @@ irc_parse(Data) ->
     Tok = string:tokens(Data, ": "),
     tokens_parse(Tok).
 
-%%hideous kludge, but I cannot think of a better way.
-tokens_parse([User, "PRIVMSG", _, CmdString, Text | Rest]) ->
+tokens_parse([User, "PRIVMSG", Channel | Rest]) ->
+    FirstWord = lists:nth(1, Rest),
+    CmdString = conf_server:lookup(cmd_string),
     Nick = lists:nth(1, string:tokens(User, "!")),
-    String = conf_server:lookup(cmd_string),
-    case CmdString == String of
-        true -> parse_cmd(Nick, Text, Rest);
-        false -> ok
+    case CmdString == FirstWord of
+        true -> parse_cmd(Nick, tl(Rest));
+        false -> {priv_msg, string:join(Rest, " ")} 
     end;
 tokens_parse([_, "353", _, _, Channel | UserList]) ->
-    %%first char of UserList is :
     {control, user_list, Channel, UserList};
 tokens_parse([_, "376" | _]) ->
     {control, join};
@@ -25,7 +24,7 @@ tokens_parse(["PING" | Rest]) ->
 tokens_parse(_) ->
     ok.
 
-parse_cmd(Nick, Cmd, Args) ->
+parse_cmd(Nick, [Cmd|Args]) ->
     Command = lists:nth(1, string:tokens(Cmd, "\r\n")),
     ArgList = lists:map(fun(X) -> lists:nth(1, string:tokens(X, "\r\n")) end, Args),
     {cmd, Nick, Command, ArgList}.
