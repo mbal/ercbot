@@ -42,14 +42,14 @@ handle_call(_Request, _From, State) ->
     {reply, ok, State}.
 
 %%this server handle only casts.
-handle_cast({cmd, _, "help", _Args}, State) ->
+handle_cast({cmd, Channel, _, "help", _Args}, State) ->
     lists:foreach(fun(Plug) -> gen_fsm:send_all_state_event(
                                  State#state.bot,
-                                 {reply_priv, 
+                                 {reply_priv, Channel,
                                   Plug:name() ++ ": " ++ Plug:short_description()}) end,
                   State#state.loaded_plugins),
     {noreply, State};
-handle_cast({cmd, _, _, _} = Message, State) ->
+handle_cast({cmd, _, _, _, _} = Message, State) ->
     %%we just dispatch to the plugins
     gen_event:notify(State#state.event_handler, Message),
     {noreply, State};
