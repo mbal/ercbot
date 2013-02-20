@@ -66,7 +66,6 @@ ready({recv, Msg}, State) ->
         {cmd, _, "crash", _} ->
             _ = 1/0;
         Message ->
-            io:format("~p", [Message]),
             gen_server:cast(State#state.plugin_mgr, Message)
     end,
     {next_state, ready, State}.

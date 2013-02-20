@@ -2,6 +2,7 @@
 -export([train/3, generate_text/2]).
 
 train(FileName, Order, Table) ->
+    io:format("~p~n", [FileName]),
     {ok, Co} = file:open(FileName, [read]),
     parse_file(Co, Order, Table, []).
 
