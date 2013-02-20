@@ -1,5 +1,16 @@
 -module(utils).
--export([irc_parse/1, debug/1, debug/2]).
+-export([irc_parse/1, debug/1, debug/2, choice/1]).
+
+%%--------------------------------------------------------------------
+%% @doc
+%% Equivalent to python's random.choice(list) function. Returns a
+%% random element from the list.
+%% @spec
+%% choice(List :: [T]) -> T.
+%% @end
+%%--------------------------------------------------------------------
+choice(List) ->
+    lists:nth(random:uniform(length(List)), List).
 
 irc_parse(Data) ->
     Tok = string:tokens(Data, ": "),
