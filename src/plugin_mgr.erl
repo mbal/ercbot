@@ -52,9 +52,10 @@ handle_cast({cmd, Channel, _, "help", []}, State) ->
                   State#state.loaded_plugins),
     {noreply, State};
 
-handle_cast({cmd, Channel, _, "help", [Name]}, State) ->
+handle_cast({cmd, _Channel, _, "help", [_Name]}, State) ->
     %% check if there's a plugin with PLUGIN:name() == Name,
     %% if so, call PLUGIN:help(), otherwise say "Plugin not found".
+    %% TODO
     {noreply, State};
 
 handle_cast(reload, State) ->

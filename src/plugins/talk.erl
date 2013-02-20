@@ -28,17 +28,17 @@ short_description() ->
 init([]) ->
     {ok, #state{}}.
 
-handle_event({cmd, Channel, _, "talk", ["init", K]}, State) ->
+handle_event({cmd, Channel, _, "talk", ["init", K]}, _State) ->
     {Order, _} = string:to_integer(K),
-    case (Order < 1) or (Order > 4) of
-        true -> 
-            plugin_api:send_priv_msg(Channel, "Order isn't in [1, 4]"),
-            NewState = #state{table=dict:new()};
-        false ->
-            NewState = #state{table=start_training(Channel, Order)}
-    end,
+    NewState = case (Order < 1) or (Order > 4) of
+                   true -> 
+                       plugin_api:send_priv_msg(Channel, "Order isn't in [1, 4]"),
+                       #state{table=dict:new()};
+                   false ->
+                       #state{table=start_training(Channel, Order)}
+               end,
     {ok, NewState};
-handle_event({cmd, Channel, _, "talk", ["init"]}, State) ->
+handle_event({cmd, Channel, _, "talk", ["init"]}, _State) ->
     NewState = #state{table=start_training(Channel, 3)},
     {ok, NewState};
 

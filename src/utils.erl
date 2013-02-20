@@ -73,15 +73,6 @@ tokens_parse([User, "PRIVMSG", Channel | Rest]) ->
             Message = string:join(Rest, " "),
             case ctcp_parse(Message) of
                 {Command, Data} -> {ctcp, Command, Data};
-                false -> {priv_msg, Message}
-            end;
-        [] when length(CmdString) > 1 ->
-            case parse_cmd(Nick, tl(Rest)) of
-                %% if you send `CmdString` on a line alone, it would be caught
-                %% even here, but it's a PRIVMSG, not a CMD. We must handle 
-                %% this special case separately.
-                priv_msg -> {priv_msg, CmdString};
-                {Command, Data} -> {ctcp, Channel, Command, Data};
                 false -> {priv_msg, Channel, Message}
             end;
         [] when length(CmdString) > 1 ->
@@ -97,16 +88,10 @@ tokens_parse([User, "PRIVMSG", Channel | Rest]) ->
             %% command is complete e.g. !time, but not when a single ! is sent.
             %% note that this latter situation can match here since ! doesn't
             %% match the previous clause, even though safter(X, "!") = [].
-            parse_cmd(Nick, [String | tl(Rest)]);
+            parse_cmd(Nick, Channel, [String | tl(Rest)]);
         _ ->
             {priv_msg, string:join(Rest, " ")}
     end;
-tokens_parse([User, "PART", _Channel]) ->
-    {control, user_quit, User};
-tokens_parse([User, "QUIT", _Channel]) ->
-    {control, user_quit, User};
-tokens_parse([User, "JOIN", _Channel]) ->
-    {control, user_join, User};
 tokens_parse([User, "PART", Channel]) ->
     {control, user_quit, Channel, User};
 tokens_parse([User, "QUIT", Channel]) ->
@@ -140,15 +125,9 @@ ctcp_parse(Cmd) ->
         {match, [[FirstG, SecondG]]} -> {FirstG, SecondG}
     end.
 
-<<<<<<< HEAD
-parse_cmd(_, []) ->
-    priv_msg;
-parse_cmd(Nick, [Cmd|Args]=Coso) ->
-=======
 parse_cmd(_, _, []) ->
     priv_msg;
 parse_cmd(Nick, Channel, [Cmd|Args]) ->
->>>>>>> origin/devel
     Command = lists:nth(1, string:tokens(Cmd, "\r\n")),
     ArgList = lists:map(fun(X) -> lists:nth(1, string:tokens(X, "\r\n")) end, Args),
     {cmd, Channel, Nick, Command, ArgList}.
