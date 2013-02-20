@@ -42,23 +42,28 @@ handle_call(_Request, _From, State) ->
     {reply, ok, State}.
 
 %%this server handle only casts.
-handle_cast({cmd, _, "help", _Args}, State) ->
-    lists:foreach(fun(Plug) -> gen_fsm:send_all_state_event(
-                                 State#state.bot,
-                                 {reply_priv, 
-                                  Plug:name() ++ ": " ++ Plug:short_description()}) end,
+handle_cast({cmd, Channel, _, "help", []}, State) ->
+    lists:foreach(fun(Plug) -> 
+                          gen_fsm:send_all_state_event(
+                            State#state.bot,
+                            {reply_priv, Channel, [Plug:name(), ": ", 
+                                                   Plug:short_description()]})
+                  end,
                   State#state.loaded_plugins),
     {noreply, State};
-handle_cast({cmd, _, _, _} = Message, State) ->
-    %%we just dispatch to the plugins
-    gen_event:notify(State#state.event_handler, Message),
+
+handle_cast({cmd, Channel, _, "help", [Name]}, State) ->
+    %% check if there's a plugin with PLUGIN:name() == Name,
+    %% if so, call PLUGIN:help(), otherwise say "Plugin not found".
     {noreply, State};
+
 handle_cast(reload, State) ->
     lists:foreach(fun(X) -> gen_event:delete_handler(
                               State#state.event_handler, X, shutdown) end,
                   State#state.loaded_plugins),
 
-    gen_fsm:send_all_state_event(State#state.bot, {reply_priv, "Stopped all plugins"}),
+    gen_fsm:send_all_state_event(State#state.bot, 
+                                 {reply_priv, "Stopped all plugins"}),
 
     %%let's get the new list of plugins.
     Plugins = conf_server:lookup(plugins),
@@ -66,10 +71,14 @@ handle_cast(reload, State) ->
                               State#state.event_handler, X, []) end,
                   Plugins),
 
-    gen_fsm:send_all_state_event(State#state.bot, {reply_priv, "Restarted everything!"}),
+    gen_fsm:send_all_state_event(State#state.bot, 
+                                 {reply_priv, "Restarted everything!"}),
     {noreply, State#state{loaded_plugins=Plugins}};
 
-handle_cast(_, State) ->
+%%% all messages are dispatched to the plugins, even priv_msg or the
+%%% control-s not already handled by the bot.
+handle_cast(Message, State) ->
+    gen_event:notify(State#state.event_handler, Message),
     {noreply, State}.
 
 handle_info({new_bot, Pid}, State) ->
@@ -81,9 +90,9 @@ handle_info({gen_event_EXIT, _Handler, normal}, State) ->
     {noreply, State};
 handle_info({gen_event_EXIT, Handler, _Reason}, State) ->
     io:format("~p", [_Reason]),
-    gen_fsm:send_all_state_event(State#state.bot, 
-                                 {reply_priv, ["Plugin ", atom_to_list(Handler), 
-                                               " crashed, restarting..."]}),
+    %%gen_fsm:send_all_state_event(State#state.bot, 
+    %%                           {reply_priv, ["Plugin ", atom_to_list(Handler),
+    %%                                           " crashed, restarting..."]}),
     gen_event:add_sup_handler(State#state.event_handler, Handler, []),
     {noreply, State};
 

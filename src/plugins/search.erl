@@ -20,20 +20,20 @@ init([]) ->
     ReqTab = ets:new(request_table, [set]),
     {ok, #state{table=ReqTab}}.
 
-handle_event({cmd, Nick, "wiki", ["lang", Lang | Args]}, State) ->
+handle_event({cmd, Channel, _Nick, "wiki", ["lang", Lang | Args]}, State) ->
     Term = string:join(Args, " "),
-    wiki_search(Term, Lang, Nick, State#state.table),
-    plugin_api:send_priv_msg(?WIKITEXT(Term, Lang)),
+    wiki_search(Term, Lang, Channel, State#state.table),
+    plugin_api:send_priv_msg(Channel, ?WIKITEXT(Term, Lang)),
     {ok, State};
-handle_event({cmd, Nick, "wiki", Args}, State) ->
+handle_event({cmd, Channel, _Nick, "wiki", Args}, State) ->
     Term = string:join(Args, " "),
-    wiki_search(Term, "en", Nick, State#state.table),
-    plugin_api:send_priv_msg(?WIKITEXT(Term, "en")),
+    wiki_search(Term, "en", Channel, State#state.table),
+    plugin_api:send_priv_msg(Channel, ?WIKITEXT(Term, "en")),
     {ok, State};
-handle_event({cmd, Nick, "google", Args}, State) ->
+handle_event({cmd, Channel, _Nick, "google", Args}, State) ->
     Term = string:join(Args, "+"),
-    google_search(Term, Nick, State#state.table),
-    plugin_api:send_priv_msg(?GOOGTEXT(Term)),
+    google_search(Term, Channel, State#state.table),
+    plugin_api:send_priv_msg(Channel, ?GOOGTEXT(Term)),
     {ok, State};
 handle_event(_Evt, State) ->
     {ok, State}.
@@ -42,24 +42,23 @@ handle_call(_Request, State) ->
     {ok, ok, State}.
 
 handle_info({http, {ReqId, Response}}, State) ->
-    [{ReqId, Nick, BackEnd}] = ets:lookup(State#state.table, ReqId),
+    [{ReqId, Channel, BackEnd}] = ets:lookup(State#state.table, ReqId),
     case BackEnd of
         wiki ->
             case Response of
                 {{_, 302, _}, Head, _} ->
                     Location = proplists:get_value("location", Head),
-                    plugin_api:send_priv_msg(Nick ++ ", here's the URL you wanted: " ++ Location);
+                    plugin_api:send_priv_msg(Channel, "here's the URL you wanted: " ++ Location);
                 _ -> 
-                    plugin_api:send_priv_msg(Nick ++ ", I couldn't find anything")
+                    plugin_api:send_priv_msg(Channel, "I couldn't find anything")
             end;
         google ->
             case Response of
                 {{_, 200, _}, _Head, Body} ->
                     Results = parse_google_results(Body, 3),
-                    plugin_api:send_priv_msg("First 3 result for your query: "),
-                    lists:foreach(fun([X]) -> plugin_api:send_priv_msg(X) end, Results);
-
-                _ -> plugin_api:send_priv_msg([Nick, ", encountered unexplicable error"])
+                    plugin_api:send_priv_msg(Channel, "First 3 result for your query: "),
+                    lists:foreach(fun([X]) -> plugin_api:send_priv_msg(Channel, X) end, Results);
+                _ -> plugin_api:send_priv_msg(Channel, "Encountered unexplicable error")
             end
     end,
     ets:delete(State#state.table, ReqId),
@@ -72,16 +71,16 @@ terminate(_Reason, State) ->
 code_change(_OldVsn, State, _Extra) ->
     {ok, State}.
 
-wiki_search(Term, Lang, Nick, Table) ->
+wiki_search(Term, Lang, Channel, Table) ->
     Url = "http://" ++ Lang ++ ".wikipedia.org/w/index.php?search=" ++ http_uri:encode(Term),
     {ok, ReqId} = httpc:request(get, {Url, [{"User-Agent", ?UA}]}, 
                                 [{autoredirect, false}], [{sync, false}]),
-    ets:insert(Table, {ReqId, Nick, wiki}).
-google_search(Term, Nick, Table) ->
+    ets:insert(Table, {ReqId, Channel, wiki}).
+google_search(Term, Channel, Table) ->
     Url = "http://www.google.com/search?q=" ++ http_uri:encode(Term),
     {ok, ReqId} = httpc:request(get, {Url, [{"User-Agent", ?UA}]}, [], 
                                 [{sync, false}]),
-    ets:insert(Table, {ReqId, Nick, google}).
+    ets:insert(Table, {ReqId, Channel, google}).
 
 parse_google_results(WebPage, N) ->
 %%%kids, don't try this at home! Parsing html with regexes is bad.

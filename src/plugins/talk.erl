@@ -28,32 +28,34 @@ short_description() ->
 init([]) ->
     {ok, #state{}}.
 
-handle_event({cmd, _, "talk", ["init", K]}, State) ->
+handle_event({cmd, Channel, _, "talk", ["init", K]}, State) ->
     {Order, _} = string:to_integer(K),
     case (Order < 1) or (Order > 4) of
         true -> 
-            plugin_api:send_priv_msg("Order isn't in [1, 4]"),
+            plugin_api:send_priv_msg(Channel, "Order isn't in [1, 4]"),
             NewState = #state{table=dict:new()};
         false ->
-            NewState = #state{table=start_training(Order, State)}
+            NewState = #state{table=start_training(Channel, Order)}
     end,
     {ok, NewState};
-handle_event({cmd, _, "talk", ["init"]}, State) ->
-    NewState = #state{table=start_training(3, State)},
+handle_event({cmd, Channel, _, "talk", ["init"]}, State) ->
+    NewState = #state{table=start_training(Channel, 3)},
     {ok, NewState};
 
-handle_event({cmd, _, "talk", [Len]}, State) ->
+handle_event({cmd, Channel, _, "talk", [Len]}, State) ->
     {Length, _} = string:to_integer(Len),
     case (Length < 10) or (Length > 300) of
         true ->
-            plugin_api:send_priv_msg("Length isn't in [10, 300]!");
+            plugin_api:send_priv_msg(Channel, 
+                                     "Length isn't in [10, 300]!");
         false ->
-            plugin_api:send_priv_msg(generate_text(Length, State#state.table))
+            plugin_api:send_priv_msg(Channel,
+                                     generate_text(Length, State#state.table))
     end,
     {ok, State};
 
-handle_event({cmd, _, "talk", []}, State) ->
-    plugin_api:send_priv_msg(generate_text(100, State#state.table)),
+handle_event({cmd, Channel, _, "talk", []}, State) ->
+    plugin_api:send_priv_msg(Channel, generate_text(100, State#state.table)),
     {ok, State};
 
 handle_event(_Event, State) ->
@@ -66,7 +68,7 @@ handle_call(_Request, State) ->
 handle_info(_Info, State) ->
     {ok, State}.
 
-terminate(_Reason, State) ->
+terminate(_Reason, _State) ->
     ok.
 
 code_change(_OldVsn, State, _Extra) ->
@@ -76,11 +78,11 @@ code_change(_OldVsn, State, _Extra) ->
 %%% Internal functions
 %%%===================================================================
 
-start_training(Order, State) ->
-    plugin_api:send_priv_msg("Starting training..."),
+start_training(Channel, Order) ->
+    plugin_api:send_priv_msg(Channel, "Starting training..."),
     TrainFileName = conf_server:lookup(train_file),
     Tab = markov:train(TrainFileName, Order, dict:new()),
-    plugin_api:send_priv_msg("Training finished. Now you can use talk <length>!"),
+    plugin_api:send_priv_msg(Channel, "Training finished. Now you can use talk <length>!"),
     Tab.
 
 generate_text(Length, Tab) ->

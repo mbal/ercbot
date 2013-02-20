@@ -1,7 +1,7 @@
 -module(bot_fsm).
 -behaviour(gen_fsm).
 
--record(state, {supervisor, plugin_mgr, connection, nick, channel}).
+-record(state, {supervisor, plugin_mgr, connection, nick, channels}).
 
 -define(CHILD_SPEC(NAME, M, F, A), 
         {NAME,
@@ -44,9 +44,10 @@ logged({recv, Data}, State) ->
     Res = utils:irc_parse(Data),
     case Res of
         {control, join} ->
-            Channel = conf_server:lookup(channel),
-            send_msg(State, ["JOIN :", Channel]),
-            {next_state, ready, State#state{channel=Channel}};
+            Channels = conf_server:lookup(channels),
+            lists:foreach(fun(X) -> send_msg(State, ["JOIN :", X]) end,
+                          Channels),
+            {next_state, ready, State#state{channels=Channels}};
         {control, ping, Data} ->
             utils:debug("Received PING, replying"),
             reply_ping(State, Data);
@@ -65,6 +66,7 @@ ready({recv, Msg}, State) ->
         {cmd, _, "crash", _} ->
             _ = 1/0;
         Message ->
+            io:format("~p", [Message]),
             gen_server:cast(State#state.plugin_mgr, Message)
     end,
     {next_state, ready, State}.
@@ -74,8 +76,8 @@ code_change(_Old, _, _, _) ->
 
 %%this collects all the responses from the plugins.
 
-handle_event({reply_priv, Msg}, State, Data) -> 
-    send_priv_msg(Data, Msg),
+handle_event({reply_priv, Channel, Msg}, State, Data) -> 
+    send_priv_msg(Data, Channel, Msg),
     {next_state, State, Data};
 
 handle_event({reply_command, Msg}, State, Data) -> 
@@ -125,7 +127,7 @@ terminate(Reason, CurrentState, CData) ->
             application:stop(bot);
         _ -> 
             utils:debug("Encountered error, saving state... ~w and ~w", [CurrentState, CData]),
-            send_priv_msg(CData, "Bot encountered an error, restarting..."),
+            %%send_priv_msg(CData, "Bot encountered an error, restarting..."),
             ets:insert(state_storage, {?MODULE, CurrentState, CData})
     end,
     ok.
@@ -139,9 +141,12 @@ start_process(Sup, Name, F, {M, A}) ->
         _ -> ok
     end.
 
-send_priv_msg(State, Msg) ->
-    gen_server:cast(State#state.connection, {send, ["PRIVMSG ", State#state.channel, " :", Msg]}).
+send_priv_msg(State, Channel, Msg) ->
+    gen_server:cast(State#state.connection, 
+                    {send, ["PRIVMSG ", Channel, " :", Msg]}).
+
 send_msg(State, Msg) ->
     gen_server:cast(State#state.connection, {send, Msg}).
+
 reply_ping(State, Data) ->
     gen_server:cast(State#state.connection, {send, ["PONG ", Data]}).

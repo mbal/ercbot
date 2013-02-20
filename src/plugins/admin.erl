@@ -18,14 +18,15 @@ init([]) ->
             {ok, #state{admins=Admins}}
     end.
 
-handle_event({cmd, Nick, "admin", Args}, State) ->
-    case lists:member(Nick, State#state.admins) of
-        true ->
-            Res = handle_command(State, Args);
-        false ->
-            Res = State,
-            plugin_api:send_priv_msg(State#state.parent, "You're not on my list, sorry")
-    end,
+handle_event({cmd, Channel, Nick, "admin", Args}, State) ->
+    Res = case lists:member(Nick, State#state.admins) of
+              true ->
+                  handle_command(State, Channel, Args);
+              false ->
+                  plugin_api:send_priv_msg(State#state.parent, Channel, 
+                                           "You're not on my list, sorry"),
+                  State
+          end,
     {ok, Res};
 handle_event(_Req, State) ->
     {ok, State}.
@@ -39,7 +40,7 @@ terminate(_Args, State) ->
 
 get_admins(State) -> string:join(State#state.admins, ", ").
 
-handle_command(State, Args) when length(Args) =< 2 ->
+handle_command(State, Channel, Args) when length(Args) =< 2 ->
     case Args of
         ["add", User] ->
             NAdminList = [User|State#state.admins],
@@ -50,17 +51,17 @@ handle_command(State, Args) when length(Args) =< 2 ->
             conf_server:update(admin, NAdminList),
             State#state{admins=NAdminList};
         ["list"] ->
-            plugin_api:send_priv_msg(get_admins(State)), 
+            plugin_api:send_priv_msg(Channel, get_admins(State)), 
             State;
         ["cnick", NewNick] ->
             plugin_api:change_nick(NewNick),
             State;
         ["restart"] ->
-            plugin_api:send_priv_msg("Restarting"),
+            plugin_api:send_priv_msg(Channel, "Restarting"),
             plugin_api:restart_bot(), 
             State;
         ["shutdown"] ->
-            plugin_api:send_priv_msg("Goodbye, suckers!"),
+            plugin_api:send_priv_msg(Channel, "Goodbye, suckers!"),
             plugin_api:shutdown_bot(), 
             State;
         ["reload"] ->
@@ -70,9 +71,10 @@ handle_command(State, Args) when length(Args) =< 2 ->
             _ = 1/0,
             State;
         _ ->
-            plugin_api:send_priv_msg("Unrecognized or incomplete option"),
+            plugin_api:send_priv_msg(Channel, 
+                                     "Unrecognized or incomplete option"),
             State
     end;
-handle_command(State, _Args) ->
-    plugin_mgr_api:send_priv_msg("Too many options"),
+handle_command(State, Channel, _Args) ->
+    plugin_mgr_api:send_priv_msg(Channel, "Too many options"),
     State.

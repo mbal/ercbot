@@ -1,7 +1,8 @@
 -module(uptime).
 
 -behaviour(gen_event).
--export([init/1, handle_event/2, terminate/2, handle_call/2, handle_info/2, code_change/3]).
+-export([init/1, handle_event/2, terminate/2, handle_call/2, 
+         handle_info/2, code_change/3]).
 -export([name/0, short_description/0]).
 
 name() -> "uptime".
@@ -13,15 +14,16 @@ init([]) ->
 uptime() ->
     {UpTime, _} = erlang:statistics(wall_clock),
     {D, {H, M, S}} = calendar:seconds_to_daystime(UpTime div 1000),
-    lists:flatten(io_lib:format("~p days, ~p hours, ~p minutes and ~p seconds", [D,H,M,S])).
+    lists:flatten(io_lib:format("~p days, ~p hours, ~p minutes and ~p seconds",
+                                [D, H, M, S])).
 
 memory() ->
     M = proplists:get_value(total, erlang:memory()),
     lists:flatten(io_lib:format("memory: ~p kb", [M / 1000])).
 
-handle_event({cmd, _, "uptime", _Args}, State) ->
-    plugin_api:send_priv_msg(uptime()),
-    plugin_api:send_priv_msg(memory()),
+handle_event({cmd, Channel, _, "uptime", _Args}, State) ->
+    plugin_api:send_priv_msg(Channel, uptime()),
+    plugin_api:send_priv_msg(Channel, memory()),
     {ok, State};
 handle_event(_Req, State) ->
     {ok, State}.
