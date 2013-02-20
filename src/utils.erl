@@ -63,11 +63,7 @@ irc_parse(Data) ->
 %%% and the b. when CmdString is a string. This is probably better.
 
 
-<<<<<<< HEAD
-tokens_parse([User, "PRIVMSG", _Channel | Rest]) ->
-=======
 tokens_parse([User, "PRIVMSG", Channel | Rest]) ->
->>>>>>> origin/devel
     CmdString = conf_server:lookup(cmd_string),
     Nick = lists:nth(1, string:tokens(User, "!")),
     FirstWord = lists:nth(1, Rest),
@@ -76,7 +72,6 @@ tokens_parse([User, "PRIVMSG", Channel | Rest]) ->
             %% could be either ctcp command or privmsg
             Message = string:join(Rest, " "),
             case ctcp_parse(Message) of
-<<<<<<< HEAD
                 {Command, Data} -> {ctcp, Command, Data};
                 false -> {priv_msg, Message}
             end;
@@ -86,7 +81,6 @@ tokens_parse([User, "PRIVMSG", Channel | Rest]) ->
                 %% even here, but it's a PRIVMSG, not a CMD. We must handle 
                 %% this special case separately.
                 priv_msg -> {priv_msg, CmdString};
-=======
                 {Command, Data} -> {ctcp, Channel, Command, Data};
                 false -> {priv_msg, Channel, Message}
             end;
@@ -96,7 +90,6 @@ tokens_parse([User, "PRIVMSG", Channel | Rest]) ->
                 %% even here, but it's a PRIVMSG, not a CMD. We must handle 
                 %% this special case separately.
                 priv_msg -> {priv_msg, Channel, CmdString};
->>>>>>> origin/devel
                 Other -> Other
             end;
         String when length(CmdString) == 1, length(String) > 0 ->
@@ -104,7 +97,6 @@ tokens_parse([User, "PRIVMSG", Channel | Rest]) ->
             %% command is complete e.g. !time, but not when a single ! is sent.
             %% note that this latter situation can match here since ! doesn't
             %% match the previous clause, even though safter(X, "!") = [].
-<<<<<<< HEAD
             parse_cmd(Nick, [String | tl(Rest)]);
         _ ->
             {priv_msg, string:join(Rest, " ")}
@@ -115,18 +107,12 @@ tokens_parse([User, "QUIT", _Channel]) ->
     {control, user_quit, User};
 tokens_parse([User, "JOIN", _Channel]) ->
     {control, user_join, User};
-=======
-            parse_cmd(Nick, Channel, [String | tl(Rest)]);
-        _ ->
-            {priv_msg, Channel, string:join(Rest, " ")}
-    end;
 tokens_parse([User, "PART", Channel]) ->
     {control, user_quit, Channel, User};
 tokens_parse([User, "QUIT", Channel]) ->
     {control, user_quit, Channel, User};
 tokens_parse([User, "JOIN", Channel]) ->
     {control, user_join, Channel, User};
->>>>>>> origin/devel
 tokens_parse([User, "NICK", NewNick]) ->
     {control, user_nick, User, NewNick};
 
