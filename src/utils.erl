@@ -1,19 +1,9 @@
 -module(utils).
--export([irc_parse/1, debug/1, debug/2, choice/1]).
-
-%%--------------------------------------------------------------------
-%% @doc
-%% Equivalent to python's random.choice(list) function. Returns a
-%% random element from the list.
-%% @spec
-%% choice(List :: [T]) -> T.
-%% @end
-%%--------------------------------------------------------------------
-choice(List) ->
-    lists:nth(random:uniform(length(List)), List).
+-export([irc_parse/1, debug/1, debug/2, choice/1, mtokens/3]).
 
 irc_parse(Data) ->
-    Tok = string:tokens(Data, ": "),
+    Toks = mtokens(Data, $:, 2),
+    Tok = lists:flatmap(fun(X) -> string:tokens(X, " ") end, Toks),
     tokens_parse(Tok).
 
 %%% if CmdString = "!" should:
@@ -62,7 +52,6 @@ irc_parse(Data) ->
 %%% My temporary solution, instead, handles the a. situation when the CmdString is a single letter
 %%% and the b. when CmdString is a string. This is probably better.
 
-
 tokens_parse([User, "PRIVMSG", Channel | Rest]) ->
     CmdString = conf_server:lookup(cmd_string),
     Nick = lists:nth(1, string:tokens(User, "!")),
@@ -72,15 +61,15 @@ tokens_parse([User, "PRIVMSG", Channel | Rest]) ->
             %% could be either ctcp command or privmsg
             Message = string:join(Rest, " "),
             case ctcp_parse(Message) of
-                {Command, Data} -> {ctcp, Command, Data};
-                false -> {priv_msg, Channel, Message}
+                {Command, Data} -> {ctcp, Nick, Command, Data};
+                false -> {priv_msg, Nick, Channel, Message}
             end;
         [] when length(CmdString) > 1 ->
             case parse_cmd(Nick, Channel, tl(Rest)) of
                 %% if you send `CmdString` on a line alone, it would be caught
                 %% even here, but it's a PRIVMSG, not a CMD. We must handle 
                 %% this special case separately.
-                priv_msg -> {priv_msg, Channel, CmdString};
+                priv_msg -> {priv_msg, Nick, Channel, CmdString};
                 Other -> Other
             end;
         String when length(CmdString) == 1, length(String) > 0 ->
@@ -90,7 +79,7 @@ tokens_parse([User, "PRIVMSG", Channel | Rest]) ->
             %% match the previous clause, even though safter(X, "!") = [].
             parse_cmd(Nick, Channel, [String | tl(Rest)]);
         _ ->
-            {priv_msg, string:join(Rest, " ")}
+            {priv_msg, Nick, Channel, string:join(Rest, " ")}
     end;
 tokens_parse([User, "PART", Channel]) ->
     {control, user_quit, Channel, User};
@@ -159,3 +148,55 @@ safter([Head|String], [Head|Prefix]) ->
     safter(String, Prefix);
 safter(_, _) ->
     false.
+
+%%--------------------------------------------------------------------
+%% @doc
+%% the same as string:tokens, but takes three parameters, the last 
+%% being the maximum number of splits. If `MaxSplit` is negative,
+%% the result is the same as string:tokens(String, Sep), with the
+%% only exception that mtokens takes a char() as separator, while
+%% tokens can use a string.
+%% @spec
+%% tokens(string(), char(), int()) -> [string()].
+%% @end
+%%--------------------------------------------------------------------
+-spec mtokens(string(), char(), integer()) -> [string()].
+mtokens(String, Separator, MaxSplit) ->
+    tokens1(String, Separator, MaxSplit, []).
+
+tokens1([], _, 0, Acc) ->
+    lists:reverse(Acc);
+tokens1([], _, _, Acc) ->
+    lists:reverse(Acc);
+
+tokens1(String, _, 0, Acc) ->
+    lists:reverse(Acc) ++ [String];
+
+tokens1([H | Rest], Separator, MaxSplit, Acc) ->
+    case (H == Separator) of
+        true ->
+            tokens1(Rest, Separator, MaxSplit-1, Acc);
+        false ->
+            find_next_sep(Rest, Separator, MaxSplit, Acc, [H])
+    end.
+
+find_next_sep([], _, _, Acc, StrAcc) ->
+    lists:reverse([lists:reverse(StrAcc) | Acc]);
+find_next_sep([H|String], Sep, MaxSplit, Acc, StrAcc) ->
+    case (H == Sep) of
+        true ->
+            tokens1(String, Sep, MaxSplit-1, [lists:reverse(StrAcc) | Acc]);
+        false ->
+            find_next_sep(String, Sep, MaxSplit, Acc, [H | StrAcc])
+    end.
+
+%%--------------------------------------------------------------------
+%% @doc
+%% The same as Python's random.choice. Returns a random element from
+%% the list
+%% @spec
+%% choice([T]) -> T.
+%% @end
+%%--------------------------------------------------------------------
+choice(List) ->
+    lists:nth(random:uniform(length(List)), List).
