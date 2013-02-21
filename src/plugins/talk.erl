@@ -23,42 +23,36 @@ short_description() ->
 
 -define(SERVER, ?MODULE). 
 
--record(state, {table}).
+-record(state, {freq_table, order}).
 
 init([]) ->
-    {ok, #state{}}.
+    {ok, #state{freq_table=empty}}.
 
-handle_event({cmd, Channel, _, "talk", ["init", K]}, _State) ->
+handle_event({cmd, Channel, _, "talk", [L, K]}, State) ->
     {Order, _} = string:to_integer(K),
     NewState = case (Order < 1) or (Order > 4) of
                    true -> 
-                       plugin_api:send_priv_msg(Channel, "Order isn't in [1, 4]"),
-                       #state{table=dict:new()};
+                       plugin_api:send_priv_msg(Channel, 
+                                                "Order isn't in [1, 4]"),
+                       State;
                    false ->
-                       #state{table=start_training(Channel, Order)}
+                       Tab = train(Order, State),
+                       talk(Channel, L, Tab),
+                       State#state{freq_table=Tab}
                end,
     {ok, NewState};
-handle_event({cmd, Channel, _, "talk", ["init"]}, _State) ->
-    NewState = #state{table=start_training(Channel, 3)},
-    {ok, NewState};
 
-handle_event({cmd, Channel, _, "talk", [Len]}, State) ->
-    {Length, _} = string:to_integer(Len),
-    case (Length < 10) or (Length > 300) of
-        true ->
-            plugin_api:send_priv_msg(Channel, 
-                                     "Length isn't in [10, 300]!");
-        false ->
-            plugin_api:send_priv_msg(Channel,
-                                     generate_text(Length, State#state.table))
-    end,
+handle_event({cmd, Channel, _, "talk", [L]}, State) ->
+    Tab = train(0, State),
+    talk(Channel, L, Tab),
     {ok, State};
-
+    
 handle_event({cmd, Channel, _, "talk", []}, State) ->
-    plugin_api:send_priv_msg(Channel, generate_text(100, State#state.table)),
+    Tab = train(0, State),
+    plugin_api:send_priv_msg(Channel, markov:generate_text(100, Tab)),
     {ok, State};
 
-handle_event(_Event, State) ->
+handle_event(_Evt, State) ->
     {ok, State}.
 
 handle_call(_Request, State) ->
@@ -78,12 +72,28 @@ code_change(_OldVsn, State, _Extra) ->
 %%% Internal functions
 %%%===================================================================
 
-start_training(Channel, Order) ->
-    plugin_api:send_priv_msg(Channel, "Starting training..."),
-    TrainFileName = conf_server:lookup(train_file),
-    Tab = markov:train(TrainFileName, Order, dict:new()),
-    plugin_api:send_priv_msg(Channel, "Training finished. Now you can use talk <length>!"),
-    Tab.
+train(0, State) ->
+    case (State#state.freq_table /= empty) of
+        true -> State#state.freq_table;
+        false -> 
+            TrainFileName = conf_server:lookup(train_file),
+            markov:train(TrainFileName, 3, dict:new())
+    end;
+train(Order, State) ->
+    case (State#state.order == Order) and (State#state.freq_table /= empty) of
+        true -> 
+            State#state.freq_table;
+        false ->
+            TrainFileName = conf_server:lookup(train_file),
+            markov:train(TrainFileName, Order, dict:new())
+    end.
 
-generate_text(Length, Tab) ->
-    markov:generate_text(Length, Tab).
+talk(Channel, L, FreqTable) ->
+    {Length, _} = string:to_integer(L),
+    case (Length < 5) or (Length > 150) of
+        true ->
+            plugin_api:send_priv_msg(Channel, "Lenght isn't in [5, 100]");
+        false ->
+            plugin_api:send_priv_msg(Channel,
+                                     markov:generate_text(Length, FreqTable))
+    end.
