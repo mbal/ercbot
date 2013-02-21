@@ -57,7 +57,7 @@ handle_call(_Request, _From, State) ->
 handle_cast({new_bot, Pid}, State) ->
     {noreply, State#state{bot=Pid}};
 handle_cast({send, Data}, State) ->
-    %%Data isn't CRNL terminated, so we simply add it
+    %% `Data` isn't CRNL terminated, so we simply add it.
     gen_tcp:send(State#state.socket, Data ++ ?CRNL),
     {noreply, State};
 handle_cast(_Msg, State) ->
