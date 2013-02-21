@@ -79,6 +79,10 @@ handle_event({reply_priv, Channel, Msg}, State, Data) ->
     send_priv_msg(Data, Channel, Msg),
     {next_state, State, Data};
 
+handle_event({send, Message}, State, Data) ->
+    send_msg(Data, Message),
+    {next_state, State, Data};
+
 handle_event({reply_command, Msg}, State, Data) -> 
     send_msg(Data, Msg),
     {next_state, State, Data};
