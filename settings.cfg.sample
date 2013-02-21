@@ -4,7 +4,7 @@
 
 {nick, "ercbot[bot]"}.
 {nick2, "alterative_nickname[bot]"}.
-{channel, "#channel"}.
+{channel, ["#channel1", "#channel2"]}.
 {server, {"irc.freenode.net", 6667}}.
 {cmd_string, "!bot"}.
 {plugins, [talk, search, '8ball-it', tell_time, uptime, admin]}.
