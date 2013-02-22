@@ -63,10 +63,8 @@ ready({recv, Msg}, State) ->
     case Res of
         {control, ping, Data} ->
             reply_ping(State, Data);
-        {cmd, _, "crash", _} ->
-            _ = 1/0;
         Message ->
-            gen_server:cast(State#state.plugin_mgr, Message)
+            gen_server:cast(plugin_mgr, Message)
     end,
     {next_state, ready, State}.
 
