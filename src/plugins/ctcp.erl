@@ -14,10 +14,9 @@
 %% gen_event callbacks
 -export([init/1, handle_event/2, handle_call/2, 
          handle_info/2, terminate/2, code_change/3]).
--export([name/0, short_description/0]).
+-export([name/0]).
 
-name() -> "ctcp".
-short_description() -> "answers to CTCP messages".
+name() -> none.
 
 %%%===================================================================
 %%% gen_event callbacks

@@ -4,10 +4,9 @@
 -record(state, {parent, admins}).
 
 -export([init/1, handle_event/2, terminate/2, handle_call/2, handle_info/2, code_change/3]).
--export([name/0, short_description/0]).
+-export([name/0]).
 
-name() -> "admin".
-short_description() -> "perform simple administrative tasks".
+name() -> none.
 
 init([]) ->
     case ets:lookup(state_storage, ?MODULE) of

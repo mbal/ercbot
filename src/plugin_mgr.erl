@@ -43,19 +43,34 @@ handle_call(_Request, _From, State) ->
 
 %%this server handle only casts.
 handle_cast({cmd, Channel, _, "help", []}, State) ->
-    lists:foreach(fun(Plug) -> 
-                          gen_fsm:send_all_state_event(
-                            State#state.bot,
-                            {reply_priv, Channel, [Plug:name(), ": ", 
-                                                   Plug:short_description()]})
-                  end,
+    lists:foreach(fun(X) -> 
+                          list_plugin(X, State#state.bot, Channel) end, 
                   State#state.loaded_plugins),
     {noreply, State};
 
-handle_cast({cmd, _Channel, _, "help", [_Name]}, State) ->
+handle_cast({cmd, Channel, _, "help", [Name]}, State) ->
     %% check if there's a plugin with PLUGIN:name() == Name,
     %% if so, call PLUGIN:help(), otherwise say "Plugin not found".
-    %% TODO
+    %% add regex search for plugins.
+    List = lists:zip(State#state.loaded_plugins, 
+                     get_names(State#state.loaded_plugins)),
+    case lists:keyfind(Name, 2, List) of
+        false ->
+            gen_fsm:send_all_state_event(
+              State#state.bot,
+              {reply_priv, Channel, "No such plugin!"});
+        {Module, _} ->
+            try
+                gen_fsm:send_all_state_event(
+                  State#state.bot, {reply_priv, Channel, Module:help()})
+            catch
+                error:undef ->
+                    gen_fsm:send_all_state_event(
+                      State#state.bot,
+                      {reply_priv, Channel, 
+                       "That plugin didn't provide a help text"})
+                end
+    end,
     {noreply, State};
 
 handle_cast(reload, State) ->
@@ -63,8 +78,8 @@ handle_cast(reload, State) ->
                               State#state.event_handler, X, shutdown) end,
                   State#state.loaded_plugins),
 
-    gen_fsm:send_all_state_event(State#state.bot, 
-                                 {reply_priv, "Stopped all plugins"}),
+    %% gen_fsm:send_all_state_event(State#state.bot, 
+    %%                              {reply_priv, "Stopped all plugins"}),
 
     %%let's get the new list of plugins.
     Plugins = conf_server:lookup(plugins),
@@ -72,8 +87,8 @@ handle_cast(reload, State) ->
                               State#state.event_handler, X, []) end,
                   Plugins),
 
-    gen_fsm:send_all_state_event(State#state.bot, 
-                                 {reply_priv, "Restarted everything!"}),
+    %% gen_fsm:send_all_state_event(State#state.bot, 
+    %%                              {reply_priv, "Restarted everything!"}),
     {noreply, State#state{loaded_plugins=Plugins}};
 
 %%% all messages are dispatched to the plugins, even priv_msg or the
@@ -109,3 +124,14 @@ code_change(_OldVsn, State, _Extra) ->
 %%%===================================================================
 %%% Internal functions
 %%%===================================================================
+
+list_plugin(Plug, Bot, Channel) ->
+    case Plug:name() of
+        none -> ok;
+        _ -> gen_fsm:send_all_state_event(
+               Bot, 
+               {reply_priv, Channel, [Plug:name(), ": ", Plug:short_description()]})
+    end.
+
+get_names(Plugins) ->
+    lists:map(fun(X) -> X:name() end, Plugins).

@@ -55,7 +55,7 @@ handle_call({lookup, Tag}, _From, State) ->
     Reply = case lists:keyfind(Tag, 1, State#state.configuration) of
                 {Tag, Value} -> Value;
                 false -> {error, no_such_setting}
-    end,
+            end,
     {reply, Reply, State};
 
 handle_call({update, {Tag, Value}}, _From, State) ->
