@@ -11,7 +11,7 @@
          worker,
          [M]}).
 
--export([start_link/1,  init/1]).
+-export([start_link/1, init/1]).
 -export([code_change/4, handle_event/3, handle_info/3]).
 -export([handle_sync_event/4, terminate/3]).
 -export([logged/2, idle/2, ready/2]).
