@@ -22,7 +22,7 @@ handle_event({cmd, Channel, Nick, "admin", Args}, State) ->
               true ->
                   handle_command(State, Channel, Args);
               false ->
-                  plugin_api:send_priv_msg(State#state.parent, Channel, 
+                  irc_api:send_priv_msg(State#state.parent, Channel, 
                                            "You're not on my list, sorry"),
                   State
           end,
@@ -50,27 +50,27 @@ handle_command(State, Channel, Args) when length(Args) =< 2 ->
             conf_server:update(admin, NAdminList),
             State#state{admins=NAdminList};
         ["list"] ->
-            plugin_api:send_priv_msg(Channel, get_admins(State)), 
+            irc_api:send_priv_msg(Channel, get_admins(State)), 
             State;
         ["cnick", NewNick] ->
-            plugin_api:change_nick(NewNick),
+            irc_api:change_nick(NewNick),
             State;
         ["restart"] ->
-            plugin_api:send_priv_msg(Channel, "Restarting"),
-            plugin_api:restart_bot(), 
+            irc_api:send_priv_msg(Channel, "Restarting"),
+            irc_api:restart_bot(), 
             State;
         ["shutdown"] ->
-            plugin_api:send_priv_msg(Channel, "Goodbye, suckers!"),
-            plugin_api:shutdown_bot(), 
+            irc_api:send_priv_msg(Channel, "Goodbye, suckers!"),
+            irc_api:shutdown_bot(), 
             State;
         ["reload"] ->
-            plugin_api:reload_plugins(),
+            irc_api:reload_plugins(),
             State;
         ["crash"] ->
             _ = 1/0,
             State;
         _ ->
-            plugin_api:send_priv_msg(Channel, 
+            irc_api:send_priv_msg(Channel, 
                                      "Unrecognized or incomplete option"),
             State
     end;

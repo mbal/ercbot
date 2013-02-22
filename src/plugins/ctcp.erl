@@ -26,10 +26,10 @@ init([]) ->
     {ok, {}}.
 
 handle_event({ctcp, Nick, "PING", Data}, State) ->
-    plugin_api:send_msg(["NOTICE ", Nick, " :", 1, "PING ", Data, 1]),
+    irc_api:send_msg(["NOTICE ", Nick, " :", 1, "PING ", Data, 1]),
     {ok, State};
 handle_event({ctcp, Nick, "VERSION", []}, State) ->
-    plugin_api:send_msg(["NOTICE ", Nick, " :", 1, "VERSION ", 
+    irc_api:send_msg(["NOTICE ", Nick, " :", 1, "VERSION ", 
                          conf_server:lookup(appname), " ",
                          conf_server:lookup(version), 1]),
     {ok, State};

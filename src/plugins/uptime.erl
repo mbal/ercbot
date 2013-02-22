@@ -22,8 +22,8 @@ memory() ->
     lists:flatten(io_lib:format("memory: ~p kb", [M / 1000])).
 
 handle_event({cmd, Channel, _, "uptime", _Args}, State) ->
-    plugin_api:send_priv_msg(Channel, uptime()),
-    plugin_api:send_priv_msg(Channel, memory()),
+    irc_api:send_priv_msg(Channel, uptime()),
+    irc_api:send_priv_msg(Channel, memory()),
     {ok, State};
 handle_event(_Req, State) ->
     {ok, State}.

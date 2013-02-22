@@ -18,7 +18,7 @@ init([]) ->
     {ok, {}}.
 
 handle_event({cmd, Channel, _Nick, "8ball", []}, State) ->
-    plugin_api:send_priv_msg(Channel, "Sai, perche' io ti risponda "
+    irc_api:send_priv_msg(Channel, "Sai, perche' io ti risponda "
                              "dovresti prima farmi una domanda"),
     {ok, State};
 handle_event({cmd, Channel, _Nick, "8ball", _Args}, State) ->
@@ -32,7 +32,7 @@ handle_event({cmd, Channel, _Nick, "8ball", _Args}, State) ->
                  "concentrati e rifai la domanda", "non ci contare",
                  "La mia risposta e' no", "Le mie fonti dicono di no",
                  "Le prospettive non sono buone", "Molto incerto"],
-    plugin_api:send_priv_msg(Channel, utils:choice(ReplyList)), 
+    irc_api:send_priv_msg(Channel, utils:choice(ReplyList)), 
     {ok, State};
 handle_event(_Evt, State) ->
     {ok, State}.

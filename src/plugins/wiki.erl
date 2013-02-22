@@ -23,13 +23,13 @@ init([]) ->
 handle_event({cmd, Channel, _Nick, "wiki", ["lang", Lang | Args]}, State) ->
     Term = string:join(Args, " "),
     wiki_search(Term, Lang, Channel, State#state.table),
-    plugin_api:send_priv_msg(Channel, ?WIKITEXT(Term, Lang)),
+    irc_api:send_priv_msg(Channel, ?WIKITEXT(Term, Lang)),
     {ok, State};
 
 handle_event({cmd, Channel, _Nick, "wiki", Args}, State) ->
     Term = string:join(Args, " "),
     wiki_search(Term, "en", Channel, State#state.table),
-    plugin_api:send_priv_msg(Channel, ?WIKITEXT(Term, "en")),
+    irc_api:send_priv_msg(Channel, ?WIKITEXT(Term, "en")),
     {ok, State};
 
 handle_event(_Evt, State) ->
@@ -65,7 +65,7 @@ got_response(Response, Channel) ->
     case Response of
         {{_, 302, _}, Head, _} ->
             Location = proplists:get_value("location", Head),
-            plugin_api:send_priv_msg(Channel, "=> " ++ Location);
+            irc_api:send_priv_msg(Channel, "=> " ++ Location);
         _ ->
-            plugin_api:send_priv_msg(Channel, "I couldn't find anything")
+            irc_api:send_priv_msg(Channel, "I couldn't find anything")
     end.

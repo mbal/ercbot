@@ -41,53 +41,37 @@ init([Bot]) ->
 handle_call(_Request, _From, State) ->
     {reply, ok, State}.
 
-handle_cast({cmd, _Channel, _, "crash", []}, State) ->
-    _ = 1/0,
-    {noreply, State};
-%%this server handle only casts.
 handle_cast({cmd, Channel, _, "help", []}, State) ->
-    CmdString = conf_server:lookup(cmd_string),
-    gen_fsm:send_all_state_event(State#state.bot, 
-                                 {reply_priv, Channel, "Available plugins:"}),
+    CmdString = get_cmd_string(),
+    irc_api:send_priv_msg(Channel, "Available plugins:"),
 
     AvPlugs = [X:name() || X <- State#state.loaded_plugins, X:name() /= none], 
-
-    gen_fsm:send_all_state_event(State#state.bot,
-                                 {reply_priv, Channel, 
-                                  string:join(AvPlugs, ", ")}),
-    gen_fsm:send_all_state_event(
-      State#state.bot,
-      {reply_priv, Channel, ["You can also try ", CmdString, " help <plugin>"]}),
-
+    
+    irc_api:send_priv_msg(Channel, string:join(AvPlugs, ", ")),
+    irc_api:send_priv_msg(Channel, ["To get help on a specific plugin, use ",
+                                    CmdString, "help <plugin>"]),
     {noreply, State};
 
 handle_cast({cmd, Channel, _, "help", [Name]}, State) ->
     %% check if there's a plugin with PLUGIN:name() == Name,
     %% if so, call PLUGIN:help(), otherwise say "Plugin not found".
-    CmdString = conf_server:lookup(cmd_string),
-    FCmdString = case length(CmdString) of
-                     1 -> CmdString;
-                     _ -> CmdString ++ " "
-                 end,
     List = lists:zip(State#state.loaded_plugins, 
                      get_names(State#state.loaded_plugins)),
+
+    CmdString = get_cmd_string(),
+
     case lists:keyfind(Name, 2, List) of
         false ->
-            gen_fsm:send_all_state_event(
-              State#state.bot,
-              {reply_priv, Channel, "No such plugin!"});
+            irc_api:send_priv_msg(Channel, "No such plugin!");
         {Module, _} ->
             try
                 Help = Module:help(),
-                FmtHelp = re:replace(Help, "%cmdstring% ", FCmdString),
-                gen_fsm:send_all_state_event(State#state.bot, 
-                                             {reply_priv, Channel, FmtHelp})
+                FmtHelp = re:replace(Help, "%cmdstring% ", CmdString),
+                irc_api:send_priv_msg(Channel, FmtHelp)
             catch
                 error:undef ->
-                    gen_fsm:send_all_state_event(
-                      State#state.bot,
-                      {reply_priv, Channel, 
-                       "That plugin didn't provide a help text"})
+                    irc_api:send_priv_msg(Channel, "That plugin didn't "
+                                          "provide a help text")
                 end
     end,
     {noreply, State};
@@ -144,13 +128,13 @@ code_change(_OldVsn, State, _Extra) ->
 %%% Internal functions
 %%%===================================================================
 
-list_plugin(Plug, Bot, Channel) ->
-    case Plug:name() of
-        none -> ok;
-        _ -> gen_fsm:send_all_state_event(
-               Bot, 
-               {reply_priv, Channel, [Plug:name(), ": ", Plug:short_description()]})
-    end.
-
 get_names(Plugins) ->
     lists:map(fun(X) -> X:name() end, Plugins).
+
+get_cmd_string() ->
+    CmdString = conf_server:lookup(cmd_string),
+    case length(CmdString) of
+        1 -> CmdString;
+        _ -> CmdString ++ " "
+    end.
+        

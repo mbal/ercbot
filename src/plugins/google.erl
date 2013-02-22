@@ -27,7 +27,7 @@ init([]) ->
 handle_event({cmd, Channel, _Nick, "google", Args}, State) ->
     Term = string:join(Args, "+"),
     google_search(Term, Channel, State#state.table),
-    plugin_api:send_priv_msg(Channel, ?GOOGTEXT(Term)),
+    irc_api:send_priv_msg(Channel, ?GOOGTEXT(Term)),
     {ok, State};
 handle_event(_Evt, State) ->
     {ok, State}.
@@ -62,13 +62,13 @@ got_response(Response, Regex, Channel) ->
     case Response of
         {{_, 200, _}, _Head, Body} ->
             Results = parse_google_results(Body, Regex, 3),
-            plugin_api:send_priv_msg(Channel, "First results for your query:"),
+            irc_api:send_priv_msg(Channel, "First results for your query:"),
             lists:foreach(fun([X]) ->
-                                  plugin_api:send_priv_msg(Channel, X)
+                                  irc_api:send_priv_msg(Channel, X)
                           end,
                           Results);
         _ ->
-            plugin_api:send_priv_msg(Channel, "Unexplicable error! Try again.")
+            irc_api:send_priv_msg(Channel, "Unexplicable error! Try again.")
     end,
     ok.
 

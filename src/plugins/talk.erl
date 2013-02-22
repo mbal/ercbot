@@ -33,7 +33,7 @@ handle_event({cmd, Channel, _, "talk", [L, K]}, State) ->
     {Order, _} = string:to_integer(K),
     NewState = case (Order < 1) or (Order > 4) of
                    true -> 
-                       plugin_api:send_priv_msg(Channel, 
+                       irc_api:send_priv_msg(Channel, 
                                                 "Order isn't in [1, 4]"),
                        State;
                    false ->
@@ -50,7 +50,7 @@ handle_event({cmd, Channel, _, "talk", [L]}, State) ->
     
 handle_event({cmd, Channel, _, "talk", []}, State) ->
     Tab = train(0, State),
-    plugin_api:send_priv_msg(Channel, markov:generate_text(100, Tab)),
+    irc_api:send_priv_msg(Channel, markov:generate_text(100, Tab)),
     {ok, State};
 
 handle_event(_Evt, State) ->
@@ -93,8 +93,8 @@ talk(Channel, L, FreqTable) ->
     {Length, _} = string:to_integer(L),
     case (Length < 5) or (Length > 150) of
         true ->
-            plugin_api:send_priv_msg(Channel, "Lenght isn't in [5, 100]");
+            irc_api:send_priv_msg(Channel, "Lenght isn't in [5, 100]");
         false ->
-            plugin_api:send_priv_msg(Channel,
+            irc_api:send_priv_msg(Channel,
                                      markov:generate_text(Length, FreqTable))
     end.
