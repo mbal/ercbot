@@ -3,10 +3,10 @@
 -behaviour(gen_event).
 -export([init/1, handle_event/2, terminate/2, handle_call/2, 
          handle_info/2, code_change/3]).
--export([name/0, short_description/0, get_time/0]).
+-export([name/0, help/0, get_time/0]).
 
 name() -> "time".
-short_description() -> "exactly as it sounds.".
+help() -> "exactly as it sounds.".
 
 init([]) ->
     {ok, {}}.

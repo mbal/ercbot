@@ -3,10 +3,10 @@
 -behaviour(gen_event).
 -export([init/1, handle_event/2, terminate/2, handle_call/2, 
          handle_info/2, code_change/3]).
--export([name/0, short_description/0]).
+-export([name/0, help/0]).
 
 name() -> "uptime".
-short_description() -> "couple of uninteresting facts about uptime and memory".
+help() -> "couple of uninteresting facts about uptime and memory".
 
 init([]) ->
     {ok, {}}.

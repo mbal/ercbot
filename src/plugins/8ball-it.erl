@@ -5,11 +5,11 @@
 -export([init/1, handle_event/2, handle_call/2, 
 	 handle_info/2, terminate/2, code_change/3]).
 
--export([name/0, short_description/0]).
+-export([name/0, help/0]).
 
 name() ->
     "8ball".
-short_description() ->
+help() ->
     "Ask a question, the magic 8ball foresees your future".
 
 init([]) ->
