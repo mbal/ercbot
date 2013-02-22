@@ -18,8 +18,8 @@ help() -> "search google for the given term. Usage: "
 init([]) ->
     inets:start(),
     {ok, RegExp} = re:compile("<li class=\"g\".*?><div class=.*?><h3 "
-                          "class=\"r\".*?><a.*?href=\"/url\\?q=(.*?)"
-                          "&amp;(?:.*?)\">.*?</a></h3>.*?</li>"),
+                              "class=\"r\".*?><a.*?href=\"/url\\?q=(.*?)"
+                              "&amp;(?:.*?)\">.*?</a></h3>.*?</li>"),
 
     ReqTab = ets:new(request_table, [set]),
     {ok, #state{regex=RegExp, table=ReqTab}}.

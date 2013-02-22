@@ -37,8 +37,7 @@ handle_event(_Evt, State) ->
     {ok, State}.
 
 handle_call(_Request, State) ->
-    Reply = ok,
-    {ok, Reply, State}.
+    {ok, ok, State}.
 
 handle_info(_Info, State) ->
     {ok, State}.
