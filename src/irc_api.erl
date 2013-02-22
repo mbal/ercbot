@@ -1,4 +1,4 @@
--module(plugin_api).
+-module(irc_api).
 -export([send_priv_msg/2, change_nick/1, send_msg/1]).
 -export([shutdown_bot/0, restart_bot/0, reload_plugins/0]).
 
