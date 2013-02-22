@@ -18,7 +18,7 @@ Configuration
 --------------------
 
 To configure the application, you must edit the `settings.cfg` file,
-placed in your `ercbot\src` directory. You can move it wherever you
+placed in your `ercbot` directory. You can move it wherever you
 prefer, then use the file path when you start the application, like
 showed below.
 
@@ -62,8 +62,10 @@ A plugin is a simple erlang module, with a `gen_event` behaviour.
 
 1. create a `plugin_name.erl` module, with a `gen_event` behaviour.
 The `init\1` function takes no arguments.
-2. add two functions `name/0` and `short_description/0`, which return
-the text to be displayed in when a user issues the help.
+2. add two functions `name/0` and `help/0`, which return
+the text to be displayed in when a user issues the help. If you don't
+want your plugin to be listed in the help, `name` can return the atom
+`none`. `help` is optional.
 3. write the `handle_event({cmd, Nick, Command, Args}, State)`
 function. This function gets called every time your bot encounters a
 !bot command, so you should do pattern matching on Command. For
@@ -72,7 +74,7 @@ look something like this:
 `handle_event({cmd, _, "time", _}, State) -> ...`
 all the other functions, like `handle_call` or `terminate` can be empty.
 4. to write a response, you can use the function
-`send_priv_msg(Message)` defined in `plugin_api.erl`. In this module,
+`send_priv_msg(Message)` defined in `irc_api.erl`. In this module,
 there are all the function which are safe to use for your plugin.
 5. add the plugin to the list in `settings.cfg`. In the erl command
 line, write: `conf_server:reload_config()`.
@@ -114,7 +116,7 @@ When the `plugin_mgr` starts, it starts all the plugins listed in
 it receives.
 
 The plugins have a simple `gen_event` behaviour, and each one send its
-response back, using the `plugin_api` module. Of course, most of the
+response back, using the `irc_api` module. Of course, most of the
 times only a plugin each command will write its response, though it's
 not certain.
                                                         
@@ -124,5 +126,6 @@ Issues
 Right now it's not very stable, however, thanks to the supervisor, in
 the event of a crash, only the offended part should restart.
 
-If you have suggestions or bug report, send me an e-mail or open an issue here on github.
+If you have suggestions or bug report, send me an e-mail or open an
+issue here on github.
 
