@@ -74,7 +74,7 @@ look something like this:
 `handle_event({cmd, _, "time", _}, State) -> ...`
 all the other functions, like `handle_call` or `terminate` can be empty.
 4. to write a response, you can use the function
-`send_priv_msg(Message)` defined in `irc_api.erl`. In this module,
+`send_priv_msg(Channel, Message)` defined in `irc_api.erl`. In this module,
 there are all the function which are safe to use for your plugin.
 5. add the plugin to the list in `settings.cfg`. In the erl command
 line, write: `conf_server:reload_config()`.
