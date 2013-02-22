@@ -41,17 +41,34 @@ init([Bot]) ->
 handle_call(_Request, _From, State) ->
     {reply, ok, State}.
 
+handle_cast({cmd, _Channel, _, "crash", []}, State) ->
+    _ = 1/0,
+    {noreply, State};
 %%this server handle only casts.
 handle_cast({cmd, Channel, _, "help", []}, State) ->
-    lists:foreach(fun(X) -> 
-                          list_plugin(X, State#state.bot, Channel) end, 
-                  State#state.loaded_plugins),
+    CmdString = conf_server:lookup(cmd_string),
+    gen_fsm:send_all_state_event(State#state.bot, 
+                                 {reply_priv, Channel, "Available plugins:"}),
+
+    AvPlugs = [X:name() || X <- State#state.loaded_plugins, X:name() /= none], 
+
+    gen_fsm:send_all_state_event(State#state.bot,
+                                 {reply_priv, Channel, 
+                                  string:join(AvPlugs, ", ")}),
+    gen_fsm:send_all_state_event(
+      State#state.bot,
+      {reply_priv, Channel, ["You can also try ", CmdString, " help <plugin>"]}),
+
     {noreply, State};
 
 handle_cast({cmd, Channel, _, "help", [Name]}, State) ->
     %% check if there's a plugin with PLUGIN:name() == Name,
     %% if so, call PLUGIN:help(), otherwise say "Plugin not found".
-    %% add regex search for plugins.
+    CmdString = conf_server:lookup(cmd_string),
+    FCmdString = case length(CmdString) of
+                     1 -> CmdString;
+                     _ -> CmdString ++ " "
+                 end,
     List = lists:zip(State#state.loaded_plugins, 
                      get_names(State#state.loaded_plugins)),
     case lists:keyfind(Name, 2, List) of
@@ -61,8 +78,10 @@ handle_cast({cmd, Channel, _, "help", [Name]}, State) ->
               {reply_priv, Channel, "No such plugin!"});
         {Module, _} ->
             try
-                gen_fsm:send_all_state_event(
-                  State#state.bot, {reply_priv, Channel, Module:help()})
+                Help = Module:help(),
+                FmtHelp = re:replace(Help, "%cmdstring% ", FCmdString),
+                gen_fsm:send_all_state_event(State#state.bot, 
+                                             {reply_priv, Channel, FmtHelp})
             catch
                 error:undef ->
                     gen_fsm:send_all_state_event(
