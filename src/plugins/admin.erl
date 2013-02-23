@@ -66,6 +66,9 @@ handle_command(State, Channel, Args) when length(Args) =< 2 ->
         ["reload"] ->
             irc_api:reload_plugins(),
             State;
+       %% ["load", PluginName] ->
+       %%     irc_api:load_plugin(PluginName),
+       %%     State;
         ["crash"] ->
             _ = 1/0,
             State;

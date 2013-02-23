@@ -80,9 +80,6 @@ handle_cast(reload, State) ->
                               State#state.event_handler, X, shutdown) end,
                   State#state.loaded_plugins),
 
-    %% gen_fsm:send_all_state_event(State#state.bot, 
-    %%                              {reply_priv, "Stopped all plugins"}),
-
     %%let's get the new list of plugins.
     Plugins = conf_server:lookup(plugins),
     LoadedPlugins = load_plugins(Plugins, State#state.event_handler),
@@ -101,12 +98,14 @@ handle_info({new_bot, Pid}, State) ->
 
 handle_info({gen_event_EXIT, _Handler, normal}, State) ->
     {noreply, State};
-handle_info({gen_event_EXIT, Handler, _Reason}, State) ->
-    io:format("~p", [_Reason]),
-    %%gen_fsm:send_all_state_event(State#state.bot, 
-    %%                           {reply_priv, ["Plugin ", atom_to_list(Handler),
-    %%                                           " crashed, restarting..."]}),
-    gen_event:add_sup_handler(State#state.event_handler, Handler, []),
+handle_info({gen_event_EXIT, Handler, Reason}, State) ->
+    utils:debug("Plugin ~p crashed. ", [atom_to_list(Handler)]),
+    case gen_event:add_sup_handler(State#state.event_handler, Handler, []) of
+        ok ->
+            utils:debug("Successfully restarted");
+        {'EXIT', Reason} ->
+            utils:debug("Couldn't restart (reason ~p)", [Reason])
+    end,
     {noreply, State};
 
 handle_info(_Info, State) ->
@@ -145,6 +144,7 @@ load_plugins2([Plugin|Rest], EvtMgr, Acc) ->
         ok ->
             load_plugins2(Rest, EvtMgr, [Plugin|Acc]);
         {'EXIT', Reason} ->
-            utils:debug("Problem loading plugin: ~p ~p", [Plugin, Reason]),
+            utils:debug("Problem loading plugin: ~p, reason: ~p", 
+                        [Plugin, Reason]),
             load_plugins2(Rest, EvtMgr, Acc)
     end.
