@@ -34,9 +34,8 @@ start_link(Bot) ->
 init([Bot]) ->
     Plugins = conf_server:lookup(plugins),
     {ok, EvtMgr} = gen_event:start_link({local, evt_mgr}),
-    lists:foreach(fun(X) -> gen_event:add_sup_handler(EvtMgr, X, []) end,
-                  Plugins),
-    {ok, #state{bot=Bot, loaded_plugins=Plugins, event_handler=EvtMgr}}.
+    LoadedPlugins = load_plugins(Plugins, EvtMgr),
+    {ok, #state{bot=Bot, loaded_plugins=LoadedPlugins, event_handler=EvtMgr}}.
 
 handle_call(_Request, _From, State) ->
     {reply, ok, State}.
@@ -46,7 +45,7 @@ handle_cast({cmd, Channel, _, "help", []}, State) ->
     irc_api:send_priv_msg(Channel, "Available plugins:"),
 
     AvPlugs = [X:name() || X <- State#state.loaded_plugins, X:name() /= none], 
-    
+
     irc_api:send_priv_msg(Channel, string:join(AvPlugs, ", ")),
     irc_api:send_priv_msg(Channel, ["To get help on a specific plugin, use ",
                                     CmdString, "help <plugin>"]),
@@ -72,7 +71,7 @@ handle_cast({cmd, Channel, _, "help", [Name]}, State) ->
                 error:undef ->
                     irc_api:send_priv_msg(Channel, "That plugin didn't "
                                           "provide a help text")
-                end
+            end
     end,
     {noreply, State};
 
@@ -86,13 +85,8 @@ handle_cast(reload, State) ->
 
     %%let's get the new list of plugins.
     Plugins = conf_server:lookup(plugins),
-    lists:foreach(fun(X) -> gen_event:add_sup_handler(
-                              State#state.event_handler, X, []) end,
-                  Plugins),
-
-    %% gen_fsm:send_all_state_event(State#state.bot, 
-    %%                              {reply_priv, "Restarted everything!"}),
-    {noreply, State#state{loaded_plugins=Plugins}};
+    LoadedPlugins = load_plugins(Plugins, State#state.event_handler),
+    {noreply, State#state{loaded_plugins=LoadedPlugins}};
 
 %%% all messages are dispatched to the plugins, even priv_msg or the
 %%% control-s not already handled by the bot.
@@ -131,10 +125,26 @@ code_change(_OldVsn, State, _Extra) ->
 get_names(Plugins) ->
     lists:map(fun(X) -> X:name() end, Plugins).
 
+%%% helper function that returns the `cmdstring` with the correct 
+%%% spacing, using the same rules in utils:parse_tokens
 get_cmd_string() ->
     CmdString = conf_server:lookup(cmd_string),
     case length(CmdString) of
         1 -> CmdString;
         _ -> CmdString ++ " "
     end.
-        
+
+%%% returns the list of the plugins that have been loaded
+load_plugins(PluginList, EvtMgr) ->
+    load_plugins2(PluginList, EvtMgr, []).
+
+load_plugins2([], _, Acc) ->
+    Acc;
+load_plugins2([Plugin|Rest], EvtMgr, Acc) ->
+    case gen_event:add_sup_handler(EvtMgr, Plugin, []) of
+        ok ->
+            load_plugins2(Rest, EvtMgr, [Plugin|Acc]);
+        {'EXIT', Reason} ->
+            utils:debug("Problem loading plugin: ~p ~p", [Plugin, Reason]),
+            load_plugins2(Rest, EvtMgr, Acc)
+    end.
