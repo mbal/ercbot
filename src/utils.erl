@@ -153,8 +153,8 @@ safter(_, _) ->
 %% @doc
 %% the same as string:tokens, but takes three parameters, the last 
 %% being the maximum number of splits. If `MaxSplit` is negative,
-%% the result is the same as string:tokens(String, Sep), with the
-%% only exception that mtokens takes a char() as separator, while
+%% the result is the same as string:tokens(String, Sep). The only
+%% difference is that mtokens takes a char() as separator, while
 %% tokens can use a string.
 %% @spec
 %% tokens(string(), char(), int()) -> [string()].

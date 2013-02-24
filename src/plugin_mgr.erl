@@ -80,10 +80,25 @@ handle_cast(reload, State) ->
                               State#state.event_handler, X, shutdown) end,
                   State#state.loaded_plugins),
 
-    %%let's get the new list of plugins.
+    %% let's get the new list of plugins.
     Plugins = conf_server:lookup(plugins),
     LoadedPlugins = load_plugins(Plugins, State#state.event_handler),
     {noreply, State#state{loaded_plugins=LoadedPlugins}};
+
+handle_cast({reload, PluginName}, State) ->
+    %% this message should do the opposite of {remove, PluginName}
+    Plugins = conf_server:lookup(plugins),
+    NotLoaded = Plugins -- State#state.loaded_plugins,
+    List = lists:zip(NotLoaded, get_names(NotLoaded)),
+    case lists:keyfind(PluginName, 2, List) of
+        false ->
+            Plugin2 = Plugins;
+        {Module, _} ->
+            %% okay, load plugin
+            gen_event:add_sup_handler(State#state.event_handler, Module, []),
+            Plugin2 = [Module | Plugins]
+    end,
+    {noreply, State#state{loaded_plugins=Plugin2}};
 
 handle_cast({remove, PluginName}, State) ->
     List = lists:zip(State#state.loaded_plugins,

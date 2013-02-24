@@ -24,7 +24,7 @@ reload_plugins() ->
     gen_server:cast(plugin_mgr, reload).
 
 load_plugin(PluginName) ->
-    gen_server:cast(plugin_mgr, {load, PluginName}).
+    gen_server:cast(plugin_mgr, {reload, PluginName}).
 
 remove_plugin(PluginName) ->
     gen_server:cast(plugin_mgr, {remove, PluginName}).
