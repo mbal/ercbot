@@ -1,7 +1,7 @@
 -module(admin).
 
 -behaviour(gen_event).
--record(state, {parent, admins}).
+-record(state, {admins}).
 
 -export([init/1, handle_event/2, terminate/2, handle_call/2, handle_info/2, code_change/3]).
 -export([name/0]).
@@ -22,8 +22,8 @@ handle_event({cmd, Channel, Nick, "admin", Args}, State) ->
               true ->
                   handle_command(State, Channel, Args);
               false ->
-                  irc_api:send_priv_msg(State#state.parent, Channel, 
-                                           "You're not on my list, sorry"),
+                  irc_api:send_priv_msg(Channel, 
+                                        "You're not on my list, sorry"),
                   State
           end,
     {ok, Res};
@@ -63,18 +63,12 @@ handle_command(State, Channel, Args) when length(Args) =< 2 ->
             irc_api:send_priv_msg(Channel, "Goodbye, suckers!"),
             irc_api:shutdown_bot(), 
             State;
-        ["reload"] ->
-            irc_api:reload_plugins(),
-            State;
-       %% ["load", PluginName] ->
-       %%     irc_api:load_plugin(PluginName),
-       %%     State;
         ["crash"] ->
             _ = 1/0,
             State;
         _ ->
             irc_api:send_priv_msg(Channel, 
-                                     "Unrecognized or incomplete option"),
+                                  "Unrecognized or incomplete option"),
             State
     end;
 handle_command(State, Channel, _Args) ->
