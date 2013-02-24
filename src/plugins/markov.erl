@@ -21,9 +21,21 @@ parse_line(Data, Order, Table, RemWords) ->
         [] -> {Table, RemWords};
         Line ->
             StripLine = lists:nth(1, Line),
-            Words = string:tokens(StripLine, " "),
+            Words = StripLine,
             insert_ngram(RemWords ++ Words, Order, Table)
     end.
+
+%% This version of parse_line works with words, while the previous works 
+%% with ngrams made of chars. 
+%%parse_line(Data, Order, Table, RemWords) ->
+%%    case string:tokens(Data, "\r\n") of
+%%        [] -> {Table, RemWords};
+%%        Line ->
+%%            StripLine = lists:nth(1, Line),
+%%            Words = string:tokens(StripLine, " "),
+%%            insert_ngram(RemWords ++ Words, Order, Table)
+%%    end.
+
 
 insert_ngram([_|Rest]=Words, Order, Table) ->
     case length(Words) > Order of
@@ -45,17 +57,18 @@ generate_text(Length, Table) ->
     generate_text(Length, Table, random_state(Table)).
 
 generate_text(Length, Table, InitialState) ->
-    string:join(generate_text_aux(Length, Table, InitialState, []), " ").
+    generate_text_aux(Length, Table, InitialState, []).
 
 generate_text_aux(Length, Table, [_|Rest]=PrevState, Acc) ->
-    case length(Acc) > Length of
+    case length(Acc) >= Length of
         true ->
             lists:reverse(Acc);
         false ->
             case dict:find(PrevState, Table) of
-                {ok, ListProbNextWords} ->
-                    NextWord = random_choice(ListProbNextWords),
-                    generate_text_aux(Length, Table, Rest ++ [NextWord], [NextWord | Acc]);
+                {ok, ListProbNextEnt} ->
+                    NextWord = random_choice(ListProbNextEnt),
+                    generate_text_aux(Length, Table, Rest ++ [NextWord], 
+                                      [NextWord | Acc]);
                 error -> 
                     generate_text_aux(Length, Table, random_state(Table), Acc)
             end
@@ -67,3 +80,4 @@ random_choice(List) ->
 
 random_state(Dictionary) ->
     random_choice(dict:fetch_keys(Dictionary)).
+
