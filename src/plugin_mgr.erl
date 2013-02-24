@@ -85,6 +85,20 @@ handle_cast(reload, State) ->
     LoadedPlugins = load_plugins(Plugins, State#state.event_handler),
     {noreply, State#state{loaded_plugins=LoadedPlugins}};
 
+handle_cast({remove, PluginName}, State) ->
+    List = lists:zip(State#state.loaded_plugins,
+                     get_names(State#state.loaded_plugins)),
+    case lists:keyfind(PluginName, 2, List) of
+        false ->
+            Plugins = State#state.loaded_plugins;
+        {Module, _} ->
+            gen_event:delete_handler(State#state.event_handler,
+                                     Module,
+                                     shutdown),
+            Plugins = lists:delete(Module, State#state.loaded_plugins)
+    end,
+    {noreply, State#state{loaded_plugins=Plugins}};
+
 %%% all messages are dispatched to the plugins, even priv_msg or the
 %%% control-s not already handled by the bot.
 handle_cast(Message, State) ->
