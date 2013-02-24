@@ -23,11 +23,16 @@ shutdown_bot() ->
 reload_plugins() ->
     gen_server:cast(plugin_mgr, reload).
 
+%% load_plugin(PluginName :: string()) -> error | ok.
+%% error means that the plugin `PluginName` is either already loaded
+%% or is not in the list `plugins` loaded from the conf_server.
 load_plugin(PluginName) ->
-    gen_server:cast(plugin_mgr, {reload, PluginName}).
+    gen_server:call(plugin_mgr, {reload, PluginName}).
 
+%% remove_plugin(PluginName :: string()) -> error | ok.
+%% error is reported when there isn't a plugin with that name
 remove_plugin(PluginName) ->
-    gen_server:cast(plugin_mgr, {remove, PluginName}).
+    gen_server:call(plugin_mgr, {remove, PluginName}).
 
 is_admin(Name) ->
     lists:member(Name, conf_server:lookup(admin)).

@@ -37,6 +37,44 @@ init([Bot]) ->
     LoadedPlugins = load_plugins(Plugins, EvtMgr),
     {ok, #state{bot=Bot, loaded_plugins=LoadedPlugins, event_handler=EvtMgr}}.
 
+handle_call({reload, PluginName}, State) ->
+    %% this message should do the opposite of {remove, PluginName}
+    Plugins = conf_server:lookup(plugins),
+    NotLoaded = Plugins -- State#state.loaded_plugins,
+    List = lists:zip(NotLoaded, get_names(NotLoaded)),
+    case lists:keyfind(PluginName, 2, List) of
+        false ->
+            {reply, error, State};
+        {Module, _} ->
+            %% okay, load plugin
+            gen_event:add_sup_handler(State#state.event_handler, Module, []),
+            Plugin2 = [Module | Plugins],
+            {reply, ok, State#state{loaded_plugins=Plugin2}}
+    end;
+
+handle_call({remove, PluginName}, State) ->
+    List = lists:zip(State#state.loaded_plugins,
+                     get_names(State#state.loaded_plugins)),
+    case lists:keyfind(PluginName, 2, List) of
+        false ->
+            {reply, error, State};
+        {Module, _} ->
+            gen_event:delete_handler(State#state.event_handler,
+                                     Module,
+                                     shutdown),
+            Plugins = lists:delete(Module, State#state.loaded_plugins),
+            {reply, ok, State#state{loaded_plugins=Plugins}}
+    end;
+
+handle_call(_Msg, State) ->
+    {ok, ok, State}.
+
+%%% all messages are dispatched to the plugins, even priv_msg or the
+%%% control-s not already handled by the bot.
+handle_cast(Message, State) ->
+    gen_event:notify(State#state.event_handler, Message),
+    {noreply, State}.
+
 handle_call(_Request, _From, State) ->
     {reply, ok, State}.
 
@@ -84,35 +122,6 @@ handle_cast(reload, State) ->
     Plugins = conf_server:lookup(plugins),
     LoadedPlugins = load_plugins(Plugins, State#state.event_handler),
     {noreply, State#state{loaded_plugins=LoadedPlugins}};
-
-handle_cast({reload, PluginName}, State) ->
-    %% this message should do the opposite of {remove, PluginName}
-    Plugins = conf_server:lookup(plugins),
-    NotLoaded = Plugins -- State#state.loaded_plugins,
-    List = lists:zip(NotLoaded, get_names(NotLoaded)),
-    case lists:keyfind(PluginName, 2, List) of
-        false ->
-            Plugin2 = Plugins;
-        {Module, _} ->
-            %% okay, load plugin
-            gen_event:add_sup_handler(State#state.event_handler, Module, []),
-            Plugin2 = [Module | Plugins]
-    end,
-    {noreply, State#state{loaded_plugins=Plugin2}};
-
-handle_cast({remove, PluginName}, State) ->
-    List = lists:zip(State#state.loaded_plugins,
-                     get_names(State#state.loaded_plugins)),
-    case lists:keyfind(PluginName, 2, List) of
-        false ->
-            Plugins = State#state.loaded_plugins;
-        {Module, _} ->
-            gen_event:delete_handler(State#state.event_handler,
-                                     Module,
-                                     shutdown),
-            Plugins = lists:delete(Module, State#state.loaded_plugins)
-    end,
-    {noreply, State#state{loaded_plugins=Plugins}};
 
 %%% all messages are dispatched to the plugins, even priv_msg or the
 %%% control-s not already handled by the bot.
