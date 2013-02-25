@@ -21,7 +21,7 @@ shutdown_bot() ->
     gen_fsm:send_all_state_event(?BOT, shutdown).
 
 reload_plugins() ->
-    gen_server:cast(plugin_mgr, reload).
+    gen_server:call(plugin_mgr, reload).
 
 %% load_plugin(PluginName :: string()) -> error | ok.
 %% error means that the plugin `PluginName` is either already loaded
