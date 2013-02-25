@@ -19,7 +19,7 @@ init([]) ->
 
 handle_event({cmd, Channel, _Nick, "8ball", []}, State) ->
     irc_api:send_priv_msg(Channel, "Sai, perche' io ti risponda "
-                             "dovresti prima farmi una domanda"),
+                          "dovresti prima farmi una domanda"),
     {ok, State};
 handle_event({cmd, Channel, _Nick, "8ball", _Args}, State) ->
     ReplyList = ["Per quanto posso vedere, si'", "E' certo", 

@@ -32,7 +32,8 @@ handle_cast({cmd, Channel, Nick, "plugin", Args}, State) ->
         true ->
             handle_command(Channel, Args); 
         false ->
-            irc_api:send_priv_msg(Channel, "Only admins can use this command")
+            irc_api:send_priv_msg(Channel, 
+                                  "Only admins can use this command")
     end,
     {noreply, State};
 

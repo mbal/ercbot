@@ -12,7 +12,6 @@ init([]) ->
     {ok, {}}.
 
 handle_event({cmd, Channel, _, "time", _Args}, State) ->
-    utils:debug(get_time()),
     irc_api:send_priv_msg(Channel, int_to_str(unix_time()) ++
                               " or, if you don't get epochs: " ++ get_time()),
     {ok, State};
