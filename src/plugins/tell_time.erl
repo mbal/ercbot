@@ -14,7 +14,7 @@ init([]) ->
 handle_event({cmd, Channel, _, "time", _Args}, State) ->
     utils:debug(get_time()),
     irc_api:send_priv_msg(Channel, int_to_str(unix_time()) ++
-                                 " or, if you don't get epochs: " ++ get_time()),
+                              " or, if you don't get epochs: " ++ get_time()),
     {ok, State};
 handle_event(_Req, State) ->
     {ok, State}.
@@ -41,7 +41,7 @@ get_time(HMS) ->
         false -> Ss = int_to_str(S)
     end,
     int_to_str(H) ++ ":" ++ Ms ++ ":" ++ Ss.
-    
+
 get_time() -> 
     {_, HMS} = calendar:local_time(),
     get_time(HMS).
