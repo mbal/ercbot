@@ -109,7 +109,7 @@ handle_event(Evt, State, Data) ->
 
 handle_info({start_connection, Sup}, StateName, State) ->
     ConPid = start_process(Sup, irc_conn, start_link, {irc_connector, [self()]}), 
-    PlgPid = start_process(Sup, irc_plug, start_link, {plugin_mgr, [self()]}),
+    PlgPid = start_process(Sup, plug_mgr, start_link, {plugin_mgr, [self(), State#state.supervisor]}),
     {next_state, StateName, State#state{plugin_mgr=PlgPid, connection=ConPid}};
 
 handle_info(_Msg, State, Data) -> 
