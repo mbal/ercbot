@@ -11,72 +11,49 @@
 -behaviour(gen_server).
 
 %% API
--export([start_link/1]).
+-export([start_link/2]).
 
 %% gen_server callbacks
 -export([init/1, handle_call/3, handle_cast/2, handle_info/2,
          terminate/2, code_change/3]).
 
--record(state, {bot, loaded_plugins, event_handler}).
+-record(state, {bot, supervisor, 
+                loaded_plugins, plugin_sup,
+                event_manager, splugins}).
+
+-define(PLUGSUP, {plug_sup, 
+                  {plugin_sup, start_link, []},
+                  transient,
+                  1000,
+                  supervisor,
+                  [plugin_supervisor]}).
+
+-define(CHILD_SPEC(Plugin), {Plugin,
+                             {gen_server, 
+                              start_link, 
+                              [{local, Plugin}, Plugin, [], []]},
+                             transient, 1000,
+                             worker, [Plugin]}).
 
 %%%===================================================================
 %%% API
 %%%===================================================================
 
-start_link(Bot) ->
+start_link(Bot, Sup) ->
     utils:debug("~w starting...", [?MODULE]),
-    gen_server:start_link({local, ?MODULE}, ?MODULE, [Bot], []).
+    gen_server:start_link({local, ?MODULE}, ?MODULE, [Bot, Sup], []).
 
 %%%===================================================================
 %%% gen_server callbacks
 %%%===================================================================
 
-init([Bot]) ->
-    Plugins = conf_server:lookup(plugins),
-    {ok, EvtMgr} = gen_event:start_link({local, evt_mgr}),
-    LoadedPlugins = load_plugins(Plugins, EvtMgr),
-    {ok, #state{bot=Bot, loaded_plugins=LoadedPlugins, event_handler=EvtMgr}}.
-
-handle_call({reload, PluginName}, State) ->
-    %% this message should do the opposite of {remove, PluginName}
-    Plugins = conf_server:lookup(plugins),
-    NotLoaded = Plugins -- State#state.loaded_plugins,
-    List = lists:zip(NotLoaded, get_names(NotLoaded)),
-    case lists:keyfind(PluginName, 2, List) of
-        false ->
-            {reply, error, State};
-        {Module, _} ->
-            %% okay, load plugin
-            gen_event:add_sup_handler(State#state.event_handler, Module, []),
-            Plugin2 = [Module | Plugins],
-            {reply, ok, State#state{loaded_plugins=Plugin2}}
-    end;
-
-handle_call({remove, PluginName}, State) ->
-    List = lists:zip(State#state.loaded_plugins,
-                     get_names(State#state.loaded_plugins)),
-    case lists:keyfind(PluginName, 2, List) of
-        false ->
-            {reply, error, State};
-        {Module, _} ->
-            gen_event:delete_handler(State#state.event_handler,
-                                     Module,
-                                     shutdown),
-            Plugins = lists:delete(Module, State#state.loaded_plugins),
-            {reply, ok, State#state{loaded_plugins=Plugins}}
-    end;
-
-handle_call(_Msg, State) ->
-    {ok, ok, State}.
-
-%%% all messages are dispatched to the plugins, even priv_msg or the
-%%% control-s not already handled by the bot.
-handle_cast(Message, State) ->
-    gen_event:notify(State#state.event_handler, Message),
-    {noreply, State}.
-
-handle_call(_Request, _From, State) ->
-    {reply, ok, State}.
+init([Bot, Sup]) ->
+    {ok, EvtPid} = gen_event:start_link({local, event_manager}),
+    EPlugins = conf_server:lookup(eplugins),
+    LoadedEPlugins = load_eplugins(EPlugins, EvtPid),
+    self() ! { start_splugin, Sup },
+    {ok, #state{bot=Bot, supervisor=Sup, event_manager=EvtPid,
+                loaded_plugins=LoadedEPlugins}}.
 
 handle_cast({cmd, Channel, _, "help", []}, State) ->
     CmdString = get_cmd_string(),
@@ -113,38 +90,57 @@ handle_cast({cmd, Channel, _, "help", [Name]}, State) ->
     end,
     {noreply, State};
 
-handle_cast(reload, State) ->
-    lists:foreach(fun(X) -> gen_event:delete_handler(
-                              State#state.event_handler, X, shutdown) end,
-                  State#state.loaded_plugins),
-
-    %% let's get the new list of plugins.
-    Plugins = conf_server:lookup(plugins),
-    LoadedPlugins = load_plugins(Plugins, State#state.event_handler),
-    {noreply, State#state{loaded_plugins=LoadedPlugins}};
-
-%%% all messages are dispatched to the plugins, even priv_msg or the
-%%% control-s not already handled by the bot.
 handle_cast(Message, State) ->
-    gen_event:notify(State#state.event_handler, Message),
+    lists:foreach(fun(Plugin) -> gen_server:cast(Plugin, Message) end,
+                  State#state.splugins),
+    gen_event:notify(State#state.event_manager, Message),
     {noreply, State}.
 
-handle_info({new_bot, Pid}, State) ->
-    %%this plugin receives the `new_bot` info when the underlying bot
-    %%crashes. This module must receive the new pid in order to send answers
-    {noreply, State#state{bot=Pid}};
+handle_call({reload, PluginName}, _From, State) ->
+    Plugins = conf_server:lookup(eplugins),
+    Loaded = State#state.loaded_plugins,
+    NotLoaded = Plugins -- Loaded,
+    List = lists:zip(NotLoaded, get_names(NotLoaded)),
+    case lists:keyfind(PluginName, 2, List) of
+        false ->
+            {reply, error, State};
+        {Module, _} ->
+            case gen_event:add_sup_handler(State#state.event_manager, 
+                                           Module, []) of
+                ok -> 
+                    {reply, ok, State#state{loaded_plugins=[Module|Loaded]}};
+                {'EXIT', _Reason} ->
+                    utils:debug("Couldn't restart ~p", [Module]),
+                    {reply, error, State}
+            end
+    end;
 
-handle_info({gen_event_EXIT, _Handler, normal}, State) ->
-    {noreply, State};
-handle_info({gen_event_EXIT, Handler, Reason}, State) ->
-    utils:debug("Plugin ~p crashed. ", [atom_to_list(Handler)]),
-    case gen_event:add_sup_handler(State#state.event_handler, Handler, []) of
-        ok ->
-            utils:debug("Successfully restarted");
-        {'EXIT', Reason} ->
-            utils:debug("Couldn't restart (reason ~p)", [Reason])
-    end,
-    {noreply, State};
+handle_call({remove, PluginName}, _From, State) ->
+    Stoppable = State#state.loaded_plugins -- State#state.splugins,
+    List = lists:zip(Stoppable, get_names(Stoppable)),
+    case lists:keyfind(PluginName, 2, List) of
+        false ->
+            {reply, error, State};
+        {Module, _} ->
+            gen_event:delete_handler(State#state.event_manager, Module),
+            Plugins = lists:delete(Module, State#state.loaded_plugins),
+            {reply, ok, State#state{loaded_plugins=Plugins}}
+    end;
+
+handle_call(_Msg, _From, State) ->
+    {reply, ok, State}.
+
+handle_info({start_splugin, Sup}, State) ->
+    Plugins = conf_server:lookup(splugins),
+    PluginSup = case supervisor:start_child(Sup, ?PLUGSUP) of
+                    {ok, Pid} -> Pid;
+                    {error, {already_started, Pid}} -> Pid;
+                    What -> io:format("~p", [What]), error
+                end,
+    SPlugins = load_plugins(Plugins, PluginSup),
+    LoadedPlugins = State#state.loaded_plugins,
+    {noreply, State#state{plugin_sup=PluginSup, splugins=SPlugins,
+                          loaded_plugins=SPlugins ++ LoadedPlugins}};
 
 handle_info(_Info, State) ->
     {noreply, State}.
@@ -172,17 +168,34 @@ get_cmd_string() ->
     end.
 
 %%% returns the list of the plugins that have been loaded
-load_plugins(PluginList, EvtMgr) ->
-    load_plugins2(PluginList, EvtMgr, []).
+load_plugins(PluginList, Supervisor) ->
+    load_plugins2(PluginList, Supervisor, []).
 
 load_plugins2([], _, Acc) ->
     Acc;
-load_plugins2([Plugin|Rest], EvtMgr, Acc) ->
-    case gen_event:add_sup_handler(EvtMgr, Plugin, []) of
-        ok ->
-            load_plugins2(Rest, EvtMgr, [Plugin|Acc]);
-        {'EXIT', Reason} ->
+load_plugins2([Plugin|Rest], Supervisor, Acc) ->
+    case supervisor:start_child(Supervisor, ?CHILD_SPEC(Plugin)) of
+        {ok, _Pid} ->
+            load_plugins2(Rest, Supervisor, [Plugin|Acc]);
+        {error, Reason} ->
             utils:debug("Problem loading plugin: ~p, reason: ~p", 
                         [Plugin, Reason]),
-            load_plugins2(Rest, EvtMgr, Acc)
+            load_plugins2(Rest, Supervisor, Acc)
+    end.
+
+%% returns the list of the plugins that have been loaded
+%% used to load plugins with the gen_event behaviour
+load_eplugins(PlugList, EvtMgr) ->
+    load_eplugins2(PlugList, EvtMgr, []).
+
+load_eplugins2([], _, Acc) ->
+    Acc;
+load_eplugins2([Plugin|Rest], EvtMgr, Acc) ->
+    case gen_event:add_sup_handler(EvtMgr, Plugin, []) of
+        ok ->
+            load_eplugins2(Rest, EvtMgr, [Plugin|Acc]);
+        {'EXIT', Reason} ->
+            utils:debug("Problem loading plugin ~p, reason ~p",
+                        [Plugin, Reason]),
+            load_eplugins2(Rest, EvtMgr, Acc)
     end.

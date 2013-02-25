@@ -8,9 +8,9 @@
 %%%-------------------------------------------------------------------
 -module(plugins).
 
--behaviour(gen_event).
+-behaviour(gen_server).
 
--export([init/1, handle_event/2, handle_call/2, 
+-export([init/1, handle_event/2, handle_call/3, handle_cast/2,
          handle_info/2, terminate/2, code_change/3]).
 
 -export([name/0]).
@@ -27,22 +27,25 @@ name() ->
 init([]) ->
     {ok, {}}.
 
-handle_event({cmd, Channel, Nick, "plugin", Args}, State) ->
+handle_cast({cmd, Channel, Nick, "plugin", Args}, State) ->
     case irc_api:is_admin(Nick) of
         true ->
             handle_command(Channel, Args); 
         false ->
             irc_api:send_priv_msg(Channel, "Only admins can use this command")
     end,
-    {ok, State};
+    {noreply, State};
 
-handle_event(_Msg, State) ->
-    {ok, State}.
+handle_cast(_Msg, State) ->
+    {noreply, State}.
 
-handle_call(_Request, State) ->
+handle_call(_Request, _, State) ->
     {ok, ok, State}.
 
 handle_info(_Info, State) ->
+    {ok, State}.
+
+handle_event(_, State) ->
     {ok, State}.
 
 terminate(_Reason, _State) ->
@@ -59,9 +62,19 @@ handle_command(Channel, ["reload"]) ->
     irc_api:reload_plugins(),
     irc_api:send_priv_msg(Channel, "Reloaded all plugins");
 handle_command(Channel, ["load", Name]) ->
-    irc_api:load_plugin(Name);
+    case irc_api:load_plugin(Name) of
+        ok ->
+            irc_api:send_priv_msg(Channel, "reloaded");
+        error ->
+            irc_api:send_priv_msg(Channel, "Couldn't restart plugin")
+    end;
 handle_command(Channel, ["remove", Name]) ->
-    irc_api:remove_plugin(Name);
+    case irc_api:remove_plugin(Name) of
+        ok ->
+            irc_api:send_priv_msg(Channel, "Correctly removed");
+        error ->
+            irc_api:send_priv_msg(Channel, "Could not remove plugin")
+    end;
 handle_command(Channel, _) ->
     irc_api:send_priv_msg(Channel, "Unknown command").
 
