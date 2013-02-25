@@ -101,10 +101,11 @@ Application's architecture, in a powerful ASCII-gram.
                         |                           |   +---------+
                         |    +------------+         |   +---------+
                         +----| plugin_mgr |---------+---| plugin2 |
-                             +------------+         |   +---------+
-                                                    |   +---------+
-                                                    +---| plugin3 |
-                                                        +---------+
+                        |    +------------+             +---------+
+                        |
+                        |    +---------------+          +---------+
+                        +----| plugin_superv |----------| plugins |
+                             +---------------+          +---------+ 
                                                         
 The application is quite easy to understand. When the supervisor
 starts, it spawns two process: first the `conf_server`, and then the
@@ -114,6 +115,8 @@ the `plugin_mgr`, which is mainly a dispatcher.
 When the `plugin_mgr` starts, it starts all the plugins listed in
 `settings.cfg`. The `plugin_mgr` sends to the plugins all the message
 it receives.
+`plugin_superv` is a simple supervisor for plugins that need to be 
+`gen_server`s.
 
 The plugins have a simple `gen_event` behaviour, and each one send its
 response back, using the `irc_api` module. Of course, most of the
