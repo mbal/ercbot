@@ -24,13 +24,14 @@ start_link(SettingsFile) ->
 %% ===================================================================
 
 init([SettingsFile]) ->
-    {ok, { {one_for_one, 5, 10},
-           [{config,
-             {conf_server, start_link, [SettingsFile]},
-             transient, 5000, worker, [conf_server]},
-
-            {bot, 
-             {bot_fsm, start_link, [self()]},
-             transient, 5000, worker, [bot_fsm]}
-            
-           ]}}.
+    {ok, { 
+       {one_for_one, 5, 10},
+       [
+        {config,
+         {conf_server, start_link, [SettingsFile]},
+         transient, 5000, worker, [conf_server]},
+        {bot, 
+         {bot_fsm, start_link, [self()]},
+         transient, 5000, worker, [bot_fsm]}
+       ]
+      }}.
