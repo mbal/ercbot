@@ -86,14 +86,9 @@ handle_event({join, Channel}, State, Data) ->
     {next_state, State, Data#state{channels=[Channel | Data#state.channels]}};
 
 handle_event({leave, Channel}, State, Data) ->
-    case length(Data#state.channels) == 1 of
-        true ->
-            {stop, shutdown, Data};
-        false ->
-            send_msg(Data, ["PART ", Channel]),
-            {next_state, State, 
-             Data#state{channels=[Channel | Data#state.channels]}}
-    end;
+    send_msg(Data, ["PART ", Channel]),
+    Channels = lists:delete(Channel, Data#state.channels),
+    {next_state, State, Data#state{channels=Channels}};
 
 handle_event({reply_command, Msg}, State, Data) -> 
     send_msg(Data, Msg),
