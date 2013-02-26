@@ -56,6 +56,10 @@ init([Sup]) ->
     {ok, #state{supervisor=Sup, event_manager=EvtPid,
                 evt_plugins=LoadedEPlugins}}.
 
+handle_cast(terminate, State) ->
+    gen_event:stop(State#state.event_manager),
+    {stop, shutdown, State};
+
 handle_cast({cmd, Channel, _, "help", []}, State) ->
     CmdString = get_cmd_string(),
     irc_api:send_priv_msg(Channel, "Available plugins:"),

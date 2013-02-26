@@ -21,6 +21,7 @@ start_link(Sup) ->
     gen_fsm:start_link({local, ?MODULE}, ?MODULE, [Sup], []).
 
 init([Supervisor]) ->
+    io:format("starting>"),
     %%we should check if there is some saved state in `state_storage`
     self() ! {start_connection, Supervisor},
     case ets:lookup(state_storage, ?MODULE) of
@@ -90,13 +91,16 @@ handle_event({change_nick, NNick}, State, Data) ->
     {next_state, State, Data#state{nick=NNick}};
 
 handle_event(restart, _State, Data) ->
-    ok = supervisor:terminate_child(Data#state.supervisor, irc_conn),
-    ok = supervisor:delete_child(Data#state.supervisor, irc_conn),
-
     gen_server:cast(Data#state.plugin_mgr, terminate),
-
-    ok = supervisor:terminate_child(Data#state.supervisor, irc_plug),
-    ok = supervisor:delete_child(Data#state.supervisor, irc_plug),
+    Sup = Data#state.supervisor,
+    io:format("~p~n", [supervisor:which_children(Data#state.supervisor)]),
+    ok = supervisor:terminate_child(Sup, plug_sup),
+    ok = supervisor:delete_child(Sup, plug_sup),
+    ok = supervisor:terminate_child(Sup, plug_mgr),
+    ok = supervisor:delete_child(Sup, plug_mgr),
+    ok = supervisor:terminate_child(Sup, irc_conn),
+    ok = supervisor:delete_child(Sup, irc_conn),
+    io:format("~p~n", [supervisor:which_children(Data#state.supervisor)]),
     {stop, restart, Data};
 
 handle_event(shutdown, _State, Data) ->
