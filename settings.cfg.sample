@@ -1,13 +1,14 @@
-{version, "1.4"}.
+{version, "1.7"}.
 {bname, "ercbot"}.
 {whois, "an extensible Erlang Bot <mbal>"}.
 
 {nick, "ercbot[bot]"}.
 {nick2, "alterative_nickname[bot]"}.
-{channel, ["#channel1", "#channel2"]}.
+{channels, ["#channel1", "#channel2"]}.
 {server, {"irc.freenode.net", 6667}}.
 {cmd_string, "!bot"}.
-{plugins, [talk, search, '8ball-it', tell_time, uptime, admin]}.
+{eplugins, [talk, search, '8ball-it', tell_time, uptime, admin]}.
+{splugins, [plugins]}.
 
 {admin, ["admin"]}.
 {train_file, "path\to\train\file.txt"}.
