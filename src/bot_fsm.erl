@@ -81,6 +81,20 @@ handle_event({send, Message}, State, Data) ->
     send_msg(Data, Message),
     {next_state, State, Data};
 
+handle_event({join, Channel}, State, Data) ->
+    send_msg(Data, ["JOIN ", Channel]),
+    {next_state, State, Data#state{channels=[Channel | Data#state.channels]}};
+
+handle_event({leave, Channel}, State, Data) ->
+    case length(Data#state.channels) == 1 of
+        true ->
+            {stop, shutdown, Data};
+        false ->
+            send_msg(Data, ["PART ", Channel]),
+            {next_state, State, 
+             Data#state{channels=[Channel | Data#state.channels]}}
+    end;
+
 handle_event({reply_command, Msg}, State, Data) -> 
     send_msg(Data, Msg),
     {next_state, State, Data};

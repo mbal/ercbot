@@ -2,11 +2,18 @@
 -export([send_priv_msg/2, change_nick/1, send_msg/1]).
 -export([shutdown_bot/0, restart_bot/0, reload_plugins/0]).
 -export([load_plugin/1, remove_plugin/1, is_admin/1]).
+-export([join_channel/1, leave_channel/1]).
 
 -define(BOT, bot_fsm).
 
 send_priv_msg(Channel, Message) ->
     gen_fsm:send_all_state_event(?BOT, {reply_priv, Channel, Message}).
+
+join_channel(Channel) ->
+    gen_fsm:send_all_state_event(?BOT, {join, Channel}).
+
+leave_channel(Channel) ->
+    gen_fsm:send_all_state_event(?BOT, {leave, Channel}).
 
 send_msg(Message) ->
     gen_fsm:send_all_state_event(?BOT, {send, Message}).
