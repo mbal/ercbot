@@ -3,12 +3,12 @@
 {whois, "an extensible Erlang Bot <mbal>"}.
 
 {nick, "ercbot[bot]"}.
-{nick2, "alterative_nickname[bot]"}.
+{nick2, "alternative_nickname[bot]"}.
 {channels, ["#channel1", "#channel2"]}.
 {server, {"irc.freenode.net", 6667}}.
 {cmd_string, "!bot"}.
-{eplugins, [talk, search, '8ball-it', tell_time, uptime, admin]}.
-{splugins, [plugins]}.
+{eplugins, [talk, search, '8ball-it', tell_time, uptime]}.
+{splugins, [plugins, admin]}.
 
 {admin, ["admin"]}.
 {train_file, "path\to\train\file.txt"}.
