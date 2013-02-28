@@ -31,8 +31,7 @@
 -define(ALL_PLUGINS(STATE), STATE#state.evt_plugins ++ STATE#state.ser_plugins).
 
 -define(CHILD_SPEC(Plugin), {Plugin,
-                             {gen_server, start_link, 
-                              [{local, Plugin}, Plugin, [], []]},
+                             {Plugin, start_link, []},
                              transient, 1000,
                              worker, [Plugin]}).
 

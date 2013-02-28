@@ -13,12 +13,15 @@
 -export([init/1, handle_event/2, handle_call/3, handle_cast/2,
          handle_info/2, terminate/2, code_change/3]).
 
--export([name/0]).
+-export([name/0, start_link/0]).
 
 -define(SERVER, ?MODULE). 
 
 name() ->
     none.
+
+start_link() ->
+    gen_server:start_link({local, ?SERVER}, ?MODULE, [], []).
 
 %%%===================================================================
 %%% gen_event callbacks
@@ -65,7 +68,7 @@ handle_command(Channel, ["reload"]) ->
 handle_command(Channel, ["load", Name]) ->
     case irc_api:load_plugin(Name) of
         ok ->
-            irc_api:send_priv_msg(Channel, "reloaded");
+            irc_api:send_priv_msg(Channel, ["Plugin ", Name, " reloaded"]);
         error ->
             irc_api:send_priv_msg(Channel, "Couldn't restart plugin")
     end;
