@@ -1,0 +1,166 @@
+* Plugin development
+
+  Making a plugin for ercbot is easy. There are two different kinds of
+  plugins: the ones with a =gen_event= behaviour and the generic plugins.
+  In the first part, we'll cover the former type.
+
+** gen\_event behaviour
+
+*** Step 1, the inception
+
+    Create a new erlang module, =plugin=, with a =gen_event= behaviour, in
+    the directory =ercbot\plugins=. Write a function =name/0=, which returns
+    the plugin name, which will be displayed in the help text. This function
+    can also return the atom =none=: in this case, the plugin will not be
+    listed in the help text. If you defined =name/0=, you may want to
+    provide a function =help/0=, which returns the help text for the plugin:
+    the users will see it when someone types =!bot help plugin=. This
+    function is optional.
+
+*** Step 2
+
+    In this step, you just write all the functions required by the
+    behaviour. The only real function you'll need is
+    =handle_event(Evt, State)=. As each message starting with the defined
+    command string (!bot, if you didn't change it) is received, it's parsed
+    in this format:
+
+    #+BEGIN_EXAMPLE
+    {cmd, Channel, Nick, Command, Args}
+    #+END_EXAMPLE
+
+    Where: 
+
+1. Channel is simply where you received the command.
+2. Nick is the nickname of the user who sent the command. You can use
+   it to check whether he has permission to use your plugin.
+3. Command is the actual command (e.g. time, uptime, ecc) 
+4. Args is a list, containing all the other text after Command, split
+   at space character.
+
+   There are other messages, wich will be described below. Your plugin
+   should pattern match against that model. For example:
+
+   #+BEGIN_SRC erlang
+      handle_event({cmd, Channel, Nick, "time", []}, State) ->
+          irc_api:send_priv_msg(Channel, "Do I look like a clock?"),
+          {noreply, State};
+      handle_event(_Evt, State) ->
+          {noreply, State}.
+   #+END_SRC
+
+
+    Note that the second definition of =handle_event/2= is necessary,
+    otherwise your plugin will crash every time a message (different from
+    "!bot time") is received. In the example we already saw the most used
+    function, however, there's a complete list in section 3.
+
+*** Final step, or "It could work!"
+
+    After you've added all the others functions, your plugin is ready. Add
+    your plugin's name to the list =eplugins= in =settings.cfg=, force a
+    reload of the file, typing, in the erl console:
+    =conf_server:reload_config()=. Move to the IRC client, and write =!bot
+    plugin load <plugin_name>=; if the loading is successfull, you should
+    see a message confirming, otherwise you'll see an error. You can also
+    type !bot plugin reload, which will cause the reloading of all
+    plugins. In this case, you won't see any feedback in the irc channel,
+    only in the shell (or, further way: restart the bot).
+    
+** Generic plugins
+  
+  This kind of plugin is a bit more difficult than the =gen_event=
+  because you can choose freely which other =gen_*= you want to use,
+  provided that you can send messages to it. 
+  To provide a unified API to start plugins and send messages, you
+  should add a function =start_link/0= (with the usual meaning) and a
+  function =cast(Message)=, which accept a Message and asynchronously
+  send it to the plugin. 
+  For example, if your plugin is a server, the
+  function would look like this (assuming that your plugin is
+  registered under the name specified in the macro =?SERVER=):
+  #+BEGIN_SRC erlang
+  start_link() ->
+      gen_server:start_link({local, ?SERVER}, ?MODULE, [], []).
+  cast(Message) ->
+      gen_server:cast(?SERVER, Message).
+  #+END_SRC
+  if your plugin is a =gen_fsm=, instead, it could be:
+  #+BEGIN_SRC erlang  
+  start_link() ->
+      gen_fsm:start_link({local, ?SERVER}, ?MODULE, [], []).
+  cast(Message) ->
+      gen_fsm:send_all_state_event(?SERVER, Message).
+  #+END_SRC
+  of course, =cast= can also do some basic filtering of messages.
+  This kind of plugin must also implement =name/0= and (optionally)
+  =help/0=.
+  When a message is received from the IRC, it's parsed in one the forms
+  described below, and then sent to all the plugins through a call to
+  cast (if the plugin is a generic) or notify (for =gen_events=). So,
+  in order to read the correct Message, you must implement the
+  functions to handle the way you used to forward the Message (in the
+  =gen_server= example you should write the =handle_cast= function).
+  Once again, when your plugin is ready, you must add the module name
+  to the list =splugins= in =settings.cfg=, and restart the bot.
+  
+
+* Functions you can use
+  
+  All the function you can use are defined in =irc_api.erl=. Here's a
+  list of the functions, with a short description, and whether you can
+  use them with a =gen_event= or you should use another behaviour.
+
+  | Function                        | Returns                 | Description                                          | =gen_event= | other |
+  | =send_priv_msg(Channel, Msg)=   | ok                      | send a PRIVMSG to Channel.                           | X           | X     |
+  | =send_msg(Msg)=                 | ok                      | sends a generic message                              | X           | X     |
+  | =join_channel(Channel)=         | ok                      | joins channel                                        | X           | X     |
+  | =leave_channel(Channel)=        | ok                      | leaves channel                                       | X           | X     |
+  | =change_nick(NewNick)=          | ok                      | change nick to `NewNick`.                            | X           | X     |
+  | =restart_bot()=                 | ok                      | restarts the bot                                     | X           | X     |
+  | =shutdown_bot()=                | ok                      | stops the bot                                        | X           | X     |
+  | [0] =reload_plugins()=          | {ok, LoadedPlugins} [1] | reload all plugins                                   |             | X     |
+  | [0] =load_plugin(PluginName)=   | error, ok [2]           | load a plugin, such that plugin:name() is PluginName |             | X     |
+  | [0] =remove_plugin(PluginName)= | error, ok [3]           | remove plugin whose name is PluginName               |             | X     |
+  | =is_admin(Nick)=                | boolean                 | return true if Nick is admin.                        | X           | X     |
+
+* Messages
+  
+  Here follows a list of all possible messages your plugin can
+  receive. Every message is sent to all the currently loaded plugins.
+
+1. ={cmd, Channel, Nick, Command, Args}=. This is the main message the
+   plugins answers to. It's sent when a user writes a message starting
+   with =cmd_string= (usually !bot, but can be changed in
+   =settings.cfg=. =Command= is the first word after that, and =Args=
+   is a list that contains the rest of the message, splitted at every
+   space.
+2. ={priv_msg, Nick, Channel, Message}=. This is the most common
+   message. It's sent whenever the user writes =Message= in the
+   =Channel=. This message includes also private messages: in this
+   case, =Channel= is the bot's nickname.
+3. ={control, Atom, [Args]}=. It's actually a family of messages. Every
+   message in this family represents a different "control" message (e.g.
+   a user =JOINs= a channel the bot is in).
+   The main messages of this kind are:
+   | ={control, user_join, Channel, User}=     | User joins the Channel                                                                                                                                                        |
+   | ={control, user_quit, Channel, User}=     | User parts or quits from Channel                                                                                                                                              |
+   | ={control, user_nick, User, NewNick}=     | User changes nick to NewNick                                                                                                                                                  |
+   | ={control, user_list, Channel, UserList}= | Message sent when the bot enters a channel. UserList contains the list of the user currently in the channel. It's possible that the bot receives two or more of this message. |
+   | ={control, user_end, Channel}=            | This message is sent when the =user_list= is finished.                                                                                                                        |
+4. ={ctcp, Command, [Args]}=. This message is sent when the bot receives
+   a ctcp command (that is, a =PRIVMSG= starting and ending with =\0x1=).
+   Args is a single string.
+
+* Footnotes
+  
+[0] This three functions can only reload/remove plugins with a
+  =gen_event= behaviour. You don't really want to unload the other
+  plugins, since they mostly serve as administrative help.
+[1] =LoadedPlugins= is a list of the plugins that could be reloaded.
+[2] This function returns error if the plugin cannot be loaded (i.e.
+  is already loaded, or when starting it crashes with an error). It
+  returns ok when the plugin has been successfully loaded.
+[3] error means that the plugin can not be stopped (usually because
+  it's not a =gen_event=).
+
