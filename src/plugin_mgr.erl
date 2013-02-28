@@ -95,7 +95,7 @@ handle_cast({cmd, Channel, _, "help", [Name]}, State) ->
     {noreply, State};
 
 handle_cast(Message, State) ->
-    lists:foreach(fun(Plugin) -> gen_server:cast(Plugin, Message) end,
+    lists:foreach(fun(Plugin) -> Plugin:cast(Message) end,
                   State#state.ser_plugins),
     gen_event:notify(State#state.event_manager, Message),
     {noreply, State}.
