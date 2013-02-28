@@ -28,9 +28,9 @@ init([]) ->
 
     SupFlags = {RestartStrategy, MaxRestarts, MaxSecondsBetweenRestarts},
 
-    Restart = permanent,
-    Shutdown = 2000,
-    Type = worker,
+    _Restart = permanent,
+    _Shutdown = 2000,
+    _Type = worker,
 
     {ok, {SupFlags, []}}.
 

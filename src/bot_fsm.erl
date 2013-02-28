@@ -21,8 +21,11 @@ start_link(Sup) ->
     gen_fsm:start_link({local, ?MODULE}, ?MODULE, [Sup], []).
 
 init([Supervisor]) ->
-    io:format("starting>"),
-    %%we should check if there is some saved state in `state_storage`
+    %% we should check if there is some saved state in `state_storage`
+    %% calling the code to start the other processes (`irc_connector`
+    %% and `plugin_mgr`) here, would cause a deadlock. So, we dispatch
+    %% a message to ourselves, which will be taken care of just after
+    %% init/1 (and start_link/0, obviously), finish.
     self() ! {start_connection, Supervisor},
     case ets:lookup(state_storage, ?MODULE) of
         [{?MODULE, NextState, NextData}] ->
@@ -50,7 +53,6 @@ logged({recv, Data}, State) ->
                           Channels),
             {next_state, ready, State#state{channels=Channels}};
         {control, ping, Data} ->
-            utils:debug("Received PING, replying"),
             reply_ping(State, Data);
         {control, change_nick} ->
             Nick2 = conf_server:lookup(nick2),
@@ -102,14 +104,12 @@ handle_event({change_nick, NNick}, State, Data) ->
 handle_event(restart, _State, Data) ->
     gen_server:cast(Data#state.plugin_mgr, terminate),
     Sup = Data#state.supervisor,
-    io:format("~p~n", [supervisor:which_children(Data#state.supervisor)]),
     ok = supervisor:terminate_child(Sup, plug_sup),
     ok = supervisor:delete_child(Sup, plug_sup),
     ok = supervisor:terminate_child(Sup, plug_mgr),
     ok = supervisor:delete_child(Sup, plug_mgr),
     ok = supervisor:terminate_child(Sup, irc_conn),
     ok = supervisor:delete_child(Sup, irc_conn),
-    io:format("~p~n", [supervisor:which_children(Data#state.supervisor)]),
     {stop, restart, Data};
 
 handle_event(shutdown, _State, Data) ->
@@ -120,8 +120,10 @@ handle_event(Evt, State, Data) ->
     {next_state, State, Data}.
 
 handle_info({start_connection, Sup}, StateName, State) ->
-    ConPid = start_process(Sup, irc_conn, start_link, {irc_connector, [self()]}), 
-    PlgPid = start_process(Sup, plug_mgr, start_link, {plugin_mgr, [State#state.supervisor]}),
+    ConPid = start_process(Sup, irc_conn, start_link, 
+                           {irc_connector, [self()]}), 
+    PlgPid = start_process(Sup, plug_mgr, start_link, 
+                           {plugin_mgr, [State#state.supervisor]}),
     {next_state, StateName, State#state{plugin_mgr=PlgPid, connection=ConPid}};
 
 handle_info(_Msg, State, Data) -> 
@@ -139,8 +141,8 @@ terminate(Reason, CurrentState, CData) ->
             utils:debug("got `shutdown` message~n"),
             application:stop(bot);
         _ -> 
-            utils:debug("Encountered error, saving state... ~w and ~w", [CurrentState, CData]),
-            %%send_priv_msg(CData, "Bot encountered an error, restarting..."),
+            utils:debug("Encountered error, saving state... ~w and ~w", 
+                        [CurrentState, CData]),
             ets:insert(state_storage, {?MODULE, CurrentState, CData})
     end,
     ok.
