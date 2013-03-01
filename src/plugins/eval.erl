@@ -1,10 +1,10 @@
 %%%-------------------------------------------------------------------
-%%% @author  <Utente@UTENTE-UTENTE>
+%%% @author  mbal
 %%% @copyright (C) 2013, 
 %%% @doc
 %%%
 %%% @end
-%%% Created :  1 Mar 2013 by  <Utente@UTENTE-UTENTE>
+%%% Created :  1 Mar 2013 by  mbal
 %%%-------------------------------------------------------------------
 -module(eval).
 
