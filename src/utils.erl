@@ -89,6 +89,8 @@ tokens_parse([User, "JOIN", Channel]) ->
     {control, user_join, User, Channel};
 tokens_parse([User, "NICK", NewNick]) ->
     {control, user_nick, User, NewNick};
+tokens_parse([_, "KICK", From, Who, _Reason]) ->
+    {control, user_kick, Who, From};
 
 tokens_parse([_, "353", _, _, Channel | UserList]) ->
     {control, user_list, Channel, UserList};
@@ -101,13 +103,12 @@ tokens_parse([_, "433" | _]) ->
     {control, change_nick}; 
 tokens_parse(["PING" | Rest]) ->
     {control, ping, Rest};
-tokens_parse(_) ->
+tokens_parse(_What) ->
     ok.
 
 ctcp_parse(Cmd) ->
-    %% I can't seem to get a nice pattern for the function 
-    %% definition that always works, so fuck it, 
-    %% I'll use a regular expression!
+    %% I can't seem to get a nice pattern for the function definition
+    %% that always works, so fuck it, I'll use a regular expression!
     case re:run(Cmd, "^\x01([a-zA-Z]*) ?([a-zA-Z0-9]*)?\x01$",
                 [global, {capture, all_but_first, list}]) of
         nomatch -> false;
