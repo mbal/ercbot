@@ -82,11 +82,11 @@ tokens_parse([User, "PRIVMSG", Channel | Rest]) ->
             {priv_msg, Nick, Channel, string:join(Rest, " ")}
     end;
 tokens_parse([User, "PART", Channel]) ->
-    {control, user_quit, Channel, User};
-tokens_parse([User, "QUIT", Channel]) ->
-    {control, user_quit, Channel, User};
+    {control, user_quit, User, Channel};
+tokens_parse([User, "QUIT" | _Rest]) ->
+    {control, user_quit, User};
 tokens_parse([User, "JOIN", Channel]) ->
-    {control, user_join, Channel, User};
+    {control, user_join, User, Channel};
 tokens_parse([User, "NICK", NewNick]) ->
     {control, user_nick, User, NewNick};
 
