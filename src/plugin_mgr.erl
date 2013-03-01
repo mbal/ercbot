@@ -154,6 +154,11 @@ handle_info({start_splugin, Sup}, State) ->
     SPlugins = load_plugins(Plugins, PluginSup),
     {noreply, State#state{plugin_sup=PluginSup, ser_plugins=SPlugins}};
 
+handle_info({gen_event_EXIT, Handler, Reason}, State) ->
+    utils:debug("Plugin ~p crashed", [Handler]),
+    gen_event:add_sup_handler(State#state.event_manager, Handler, []),
+    {noreply, State};
+
 handle_info(_Info, State) ->
     {noreply, State}.
 
