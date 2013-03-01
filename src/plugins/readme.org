@@ -143,9 +143,10 @@
    message in this family represents a different "control" message (e.g.
    a user =JOINs= a channel the bot is in).
    The main messages of this kind are:
-   | ={control, user_join, Channel, User}=     | User joins the Channel                                                                                                                                                        |
-   | ={control, user_quit, Channel, User}=     | User parts or quits from Channel                                                                                                                                              |
+   | ={control, user_join, User, Channel}=     | User joins the Channel                                                                                                                                                        |
+   | ={control, user_quit, User, Channel}=     | User parts or quits from Channel                                                                                                                                              |
    | ={control, user_nick, User, NewNick}=     | User changes nick to NewNick                                                                                                                                                  |
+   | ={control, user_kick, User, Channel}=     | User has been kicked from Channel                                                                                                                                             |
    | ={control, user_list, Channel, UserList}= | Message sent when the bot enters a channel. UserList contains the list of the user currently in the channel. It's possible that the bot receives two or more of this message. |
    | ={control, user_end, Channel}=            | This message is sent when the =user_list= is finished.                                                                                                                        |
 4. ={ctcp, Command, [Args]}=. This message is sent when the bot receives
