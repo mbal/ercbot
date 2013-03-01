@@ -17,35 +17,38 @@
 -export([init/1, handle_event/2, handle_call/2, 
          handle_info/2, terminate/2, code_change/3]).
 
--export([eval/2, pow/2,factorial/1]).
+-define(SERVER, ?MODULE). 
+-define(BADARITH, "Division by zero?").
+-define(THROWERROR, "Number not in range").
+-define(GENERROR, "Probably you added some useless operator").
 
 name() ->
     "eval".
 help() ->
-    "mini stack-based programming language".
-
--define(SERVER, ?MODULE). 
-
--record(state, {prev_result}).
+    "mini rpn calculator".
 
 init([]) ->
-    {ok, #state{}}.
+    {ok, {}}.
 
 handle_event({cmd, Channel, _Nick, "eval", ExprList}, State) ->
-    case eval(ExprList, []) of
-        error -> irc_api:send_priv_msg(Channel, "Error, Error, Error, Error, Error");
-        Stack -> irc_api:send_priv_msg(Channel, 
-                                       string:join(
-                                         lists:map(fun(X) -> io_lib:format("~p", [X]) end,
-                                                   Stack), ", "))
+    try 
+        Stack = eval(ExprList, []),
+        irc_api:send_priv_msg(Channel, 
+                              string:join(
+                                lists:map(
+                                  fun(X) -> io_lib:format("~p", [X]) end, 
+                                  Stack), ", ")) 
+    catch
+        error:badarith -> irc_api:send_priv_msg(Channel, ?BADARITH);
+        throw:error -> irc_api:send_priv_msg(Channel, ?THROWERROR);
+        _:_ -> irc_api:send_priv_msg(Channel, ?GENERROR)
     end,
     {ok, State};
 handle_event(_Evt, State) ->
     {ok, State}.
 
 handle_call(_Request, State) ->
-    Reply = ok,
-    {ok, Reply, State}.
+    {ok, ok, State}.
 
 handle_info(_Info, State) ->
     {ok, State}.
@@ -69,35 +72,30 @@ eval(["*" | Rest], [X, Y | Stack]) ->
 eval(["+" | Rest], [X, Y | Stack]) ->
     eval(Rest, [X+Y | Stack]);
 eval(["!" | Rest], [X | Stack]) ->
-    try
-        Fact = factorial(X),
-        eval(Rest, [Fact | Stack])
-    catch
-        _:_ -> error
-    end;
+    eval(Rest, [factorial(X) | Stack]);
 eval(["^" | Rest], [X, Y | Stack]) ->
     eval(Rest, [pow(X, Y) | Stack]);
 eval([C | Rest], Stack) ->
     case string:to_integer(C) of
         {error, _} ->
-            error;
+            throw(error);
         {Number, _} ->
             eval(Rest, [Number | Stack]);
         _ ->
-            error
+            throw(error)
     end;
 eval([], Stack) ->
     Stack.
 
 pow(A, B) ->
     pow(A, B, 1).
-pow(A, 0, Res) ->
+
+pow(_A, 0, Res) ->
     Res;
-pow(A, B, Res) when Res < 10000 ->
+pow(A, B, Res) when abs(Res) < 10000 ->
     pow(A, B-1, A * Res);
 pow(_, _, _) ->
-    error.
-
+    throw(error).
 
 factorial(0) ->
     1;
