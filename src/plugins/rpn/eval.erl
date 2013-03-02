@@ -41,7 +41,8 @@ handle_event({cmd, Channel, _Nick, "eval", ExprList}, State) ->
     OldStack = State#state.prev_stack,
     Expression = syard:tokenize(string:join(ExprList, " "), State#state.regex),
     Rpn = syard:transform(rpn:lex(Expression)),
-    irc_api:send_priv_msg(Channel, ["Equivalent RPN: ", io_lib:format("~p", [Rpn])]),
+    irc_api:send_priv_msg(Channel, ["Equivalent RPN: ", 
+                                    io_lib:format("~p", [Rpn])]),
     Ans = do_evaluation(Channel, Rpn, OldStack),
     {ok, State#state{prev_stack=Ans}};
 
