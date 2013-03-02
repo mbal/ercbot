@@ -67,11 +67,10 @@ code_change(_OldVsn, State, _Extra) ->
 do_evaluation(Channel, Expression, OldStack) ->
     case rpn:evaluate(Expression, OldStack) of
         {ok, Ans} ->
-            irc_api:send_priv_msg(Channel, 
-                                  string:join(
-                                    lists:map(
-                                      fun(X) -> io_lib:format("~p", [X]) end,
-                                      Ans), ", "));
+            irc_api:send_priv_msg(
+              Channel, string:join(lists:map(
+                                     fun(X) -> io_lib:format("~p", [X]) end,
+                                     Ans), ", "));
         Error ->
             irc_api:send_priv_msg(Channel, Error),
             Ans = OldStack
