@@ -16,41 +16,41 @@
 %% gen_event callbacks
 -export([init/1, handle_event/2, handle_call/2, 
          handle_info/2, terminate/2, code_change/3]).
--export([lex/1, eval/3]).
 
 -define(BADARITH, "Error! Division by zero?").
 -define(THROWERROR, "Error! Number not in range").
 -define(TOOBIG, "Error! The stack is too big!").
 -define(GENERROR, "Error! Probably you added some useless operator").
+-define(PARERROR, "Error! Unbalanced parenthesis").
+
+-define(SUPPORTED_OP, ["+", "*", "-", "/", "^", "@", "!"]).
 
 -record(state, {prev_stack}).
 
 name() ->
     "eval".
 help() ->
-    "Mini RPN calculator. Available operators: +, -, *, /, ^, ! "
-        "and @ (previous stack content)".
+    "Mini calculator. Available operators: +, -, *, /, ^, ! "
+        "and @ (previous stack content, only in RPN mode)"
+        "Usage: !bot eval [rpn] <expression>".
 
 init([]) ->
     {ok, #state{}}.
 
+handle_event({cmd, Channel, _Nick, "eval", ["rpn" | ExprList]}, State) ->
+    OldStack = State#state.prev_stack,
+    Rpn = lex(ExprList),
+    Ans = do_evaluation(Channel, Rpn, OldStack),
+    {ok, State#state{prev_stack=Ans}};
+
 handle_event({cmd, Channel, _Nick, "eval", ExprList}, State) ->
     OldStack = State#state.prev_stack,
-    try 
-        Expression = lex(ExprList),
-        NewStack = eval(Expression, [], OldStack),
-        irc_api:send_priv_msg(Channel, 
-                              string:join(
-                                lists:map(
-                                  fun(X) -> io_lib:format("~p", [X]) end, 
-                                  NewStack), ", ")),
-    {ok, State#state{prev_stack=NewStack}}
-    catch
-        error:badarith -> irc_api:send_priv_msg(Channel, ?BADARITH), {ok, State};
-        throw:error -> irc_api:send_priv_msg(Channel, ?THROWERROR), {ok, State};
-        throw:too_big -> irc_api:send_priv_msg(Channel, ?TOOBIG), {ok, State};
-        _Err:_Reason -> irc_api:send_priv_msg(Channel, ?GENERROR), {ok, State}
-    end;
+    Expression = tokenize(string:join(ExprList, " ")),
+    Rpn = transform(lex(Expression)),
+    irc_api:send_priv_msg(Channel, ["Equivalent RPN: ", io_lib:format("~p", [Rpn])]),
+    Ans = do_evaluation(Channel, Rpn, OldStack),
+    {ok, State#state{prev_stack=Ans}};
+
 handle_event(_Evt, State) ->
     {ok, State}.
 
@@ -70,11 +70,46 @@ code_change(_OldVsn, State, _Extra) ->
 %%% Internal functions
 %%%===================================================================
 
--define(SUPPORTED_OP, ["+", "*", "-", "/", "^", "@", "!"]).
+tokenize(String) ->
+    {match, List} = re:run(String, "([0-9]+(?:\\.[0-9]+)?)|(\\+|\\-|/|\\*|\\!|\\@)|([\\(\\)])",
+                           [global, {capture, all_but_first, list}]),
+    io:format(">~p~n", [List]),
+    List2 = lists:foldl(fun(X, Y) ->
+                                Y ++ X end, [], List),
+    lists:filter(fun(X) -> X /= [] end, List2).
+
+do_evaluation(Channel, Expression, OldStack) ->
+    case evaluate(Expression, OldStack) of
+        {ok, Ans} ->
+            irc_api:send_priv_msg(Channel, 
+                                  string:join(
+                                    lists:map(fun(X) -> io_lib:format("~p", [X]) end,
+                                              Ans), ", "));
+        Error ->
+            irc_api:send_priv_msg(Channel, Error),
+            Ans = OldStack
+    end,
+    Ans.
+
+evaluate(Rpn, OldStack) ->
+    try
+        Res = eval(Rpn, [], OldStack),
+        {ok, Res}
+    catch
+        error:badarith -> ?BADARITH;
+        throw:error -> ?THROWERROR;
+        throw:too_big -> ?TOOBIG;
+        throw:par_error -> ?PARERROR;
+        _Err:_Reason -> ?GENERROR
+    end.
 
 lex(Expression) ->
     lex1(Expression, []).
 
+lex1(["("|Expr], Res) ->
+    lex1(Expr, ["(" | Res]);
+lex1([")"|Expr], Res) ->
+    lex1(Expr, [")" | Res]);
 lex1([H|Expression], Result) when length(Result) < 1000 ->
     case lists:member(H, ?SUPPORTED_OP) of
         true ->
@@ -98,13 +133,13 @@ eval(_, Stack, _) when length(Stack) > 100 ->
 eval(["+" | ExprList], [X, Y | Stack], OldStack) ->
     eval(ExprList, [X+Y | Stack], OldStack);
 eval(["-" | ExprList], [X, Y | Stack], OldStack) ->
-    eval(ExprList, [X-Y | Stack], OldStack);
+    eval(ExprList, [Y-X | Stack], OldStack);
 eval(["*" | ExprList], [X, Y | Stack], OldStack) ->
     eval(ExprList, [X*Y | Stack], OldStack);
 eval(["/" | ExprList], [X, Y | Stack], OldStack) ->
-    eval(ExprList, [X/Y | Stack], OldStack);
+    eval(ExprList, [Y/X | Stack], OldStack);
 eval(["^" | ExprList], [X, Y | Stack], OldStack) ->
-    eval(ExprList, [pow(X, Y) | Stack], OldStack);
+    eval(ExprList, [pow(Y, X) | Stack], OldStack);
 
 eval(["@" | ExprList], Stack, OldStack) ->
     eval(ExprList, OldStack ++ Stack, OldStack);
@@ -129,3 +164,59 @@ factorial(N) when (N > 0) andalso (N < 700) ->
     N * factorial(N - 1);
 factorial(_) ->
     throw(error).
+
+priority("+") -> 1;
+priority("-") -> 1;
+priority("^") -> 2;
+priority("*") -> 3;
+priority("/") -> 3;
+priority("!") -> 4;
+priority("@") -> 5.
+
+assoc("!") -> right;
+assoc("^") -> right;
+assoc(_)   -> left.
+
+is_operator(Op) ->
+    lists:member(Op, ?SUPPORTED_OP).
+
+transform(Expression) ->
+    transform1(Expression, [], []).
+
+transform1(["(" | Rest], OutStack, OpStack) ->
+    transform1(Rest, OutStack, ["(" | OpStack]);
+transform1([")" | Rest], OutStack, OpStack) ->
+    {OutStack2, OpStack2} = transform_par(OutStack, OpStack),
+    transform1(Rest, OutStack2, OpStack2);
+transform1([H|Rest], OutStack, OpStack) ->
+    case is_operator(H) of
+        true ->
+            {Stack, OpStack2} = transform_op(H, OutStack, OpStack),
+            transform1(Rest, Stack, OpStack2);
+        false ->
+            transform1(Rest, [H | OutStack], OpStack)
+    end;
+transform1([], OutStack, [Op|OpStack]) ->
+    transform1([], [Op|OutStack], OpStack);
+transform1([], OutStack, []) ->
+    lists:reverse(OutStack).
+
+transform_par(_OutStack, []) ->
+    throw(par_error);
+transform_par(OutStack, ["(" | OpStack]) ->
+    {OutStack, OpStack};
+transform_par(OutStack, [Op | OpStack]) ->
+    transform_par([Op | OutStack], OpStack).
+
+transform_op(Op, Stack, []) ->
+    {Stack, [Op]};
+transform_op(Op1, Stack, ["("|_]=CStack) ->
+    {Stack, [Op1|CStack]};
+transform_op(Op1, Stack, [Op2|OpStack]=CStack) ->
+    case ((assoc(Op1) == left) and (priority(Op1) =< priority(Op2)) or
+                                                                      (priority(Op1) < priority(Op2))) of
+        true ->
+            transform_op(Op1, [Op2 | Stack], OpStack);
+        false ->
+            {Stack, [Op1 | CStack]}
+    end.
