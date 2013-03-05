@@ -52,35 +52,49 @@ irc_parse(Data) ->
 %%% My temporary solution, instead, handles the a. situation when the CmdString is a single letter
 %%% and the b. when CmdString is a string. This is probably better.
 
+%%% NOTE: this clause of tokens_parse accept only Channels.
 tokens_parse([User, "PRIVMSG", Channel | Rest]) ->
     CmdString = conf_server:lookup(cmd_string),
     Nick = lists:nth(1, string:tokens(User, "!")),
     FirstWord = lists:nth(1, Rest),
-    case safter(FirstWord, CmdString) of
-        false -> 
-            %% could be either ctcp command or privmsg
-            Message = string:join(Rest, " "),
-            case ctcp_parse(Message) of
-                {Command, Data} -> {ctcp, Nick, Command, Data};
-                false -> {priv_msg, Nick, Channel, Message}
-            end;
-        [] when length(CmdString) > 1 ->
-            case parse_cmd(Nick, Channel, tl(Rest)) of
-                %% if you send `CmdString` on a line alone, it would be caught
-                %% even here, but it's a PRIVMSG, not a CMD. We must handle 
-                %% this special case separately.
-                priv_msg -> {priv_msg, Nick, Channel, CmdString};
-                Other -> Other
-            end;
-        String when length(CmdString) == 1, length(String) > 0 ->
-            %% this matches only when CmdString is a single letter, and the
-            %% command is complete e.g. !time, but not when a single ! is sent.
-            %% note that this latter situation can match here since ! doesn't
-            %% match the previous clause, even though safter(X, "!") = [].
-            parse_cmd(Nick, Channel, [String | tl(Rest)]);
-        _ ->
-            {priv_msg, Nick, Channel, string:join(Rest, " ")}
+    Msg = case safter(FirstWord, CmdString) of
+              false -> 
+                  %% could be either ctcp command or privmsg
+                  Message = string:join(Rest, " "),
+                  case ctcp_parse(Message) of
+                      {Command, Data} -> {ctcp, Nick, Command, Data};
+                      false -> {priv_msg, Nick, Channel, Message}
+                  end;
+              [] when length(CmdString) > 1 ->
+                  io:format("Command"),
+                  case parse_cmd(Nick, Channel, tl(Rest)) of
+                      %% if you send `CmdString` on a line alone, it
+                      %% would be caught even here, but it's a
+                      %% PRIVMSG, not a CMD. We must handle this
+                      %% special case separately.
+                      priv_msg -> {priv_msg, Nick, Channel, CmdString};
+                      Other -> Other
+                  end;
+              String when length(CmdString) == 1, length(String) > 0 ->
+                  %% this matches only when CmdString is a single
+                  %% letter, and the command is complete e.g. !time,
+                  %% but not when a single ! is sent. note that this
+                  %% latter situation can match here since ! doesn't
+                  %% match the previous clause, even though safter(X,
+                  %% "!") = [].
+                  io:format("Command"),
+                  parse_cmd(Nick, Channel, [String | tl(Rest)]);
+              _ ->
+                  {priv_msg, Nick, Channel, string:join(Rest, " ")}
+          end,
+    %% the second clause should be replaced by
+    %% erlang:insert_element(1, Msg, mp), but it's not available in
+    %% all versions of erlang.
+    case Channel of
+        [$# | _] -> Msg;
+        _ -> erlang:list_to_tuple([mp | tuple_to_list(Msg)])
     end;
+
 tokens_parse([User, "PART", Channel]) ->
     {control, user_quit, User, Channel};
 tokens_parse([User, "QUIT" | _Rest]) ->
@@ -119,7 +133,8 @@ parse_cmd(_, _, []) ->
     priv_msg;
 parse_cmd(Nick, Channel, [Cmd|Args]) ->
     Command = lists:nth(1, string:tokens(Cmd, "\r\n")),
-    ArgList = lists:map(fun(X) -> lists:nth(1, string:tokens(X, "\r\n")) end, Args),
+    ArgList = lists:map(fun(X) -> lists:nth(1, string:tokens(X, "\r\n")) end,
+                        Args),
     {cmd, Channel, Nick, Command, ArgList}.
 
 debug(Msg) ->
@@ -201,3 +216,4 @@ find_next_sep([H|String], Sep, MaxSplit, Acc, StrAcc) ->
 %%--------------------------------------------------------------------
 choice(List) ->
     lists:nth(random:uniform(length(List)), List).
+
