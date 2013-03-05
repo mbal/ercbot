@@ -88,11 +88,11 @@ tokens_parse([User, "PRIVMSG", Channel | Rest]) ->
                   {priv_msg, Nick, Channel, string:join(Rest, " ")}
           end,
     %% the second clause should be replaced by
-    %% erlang:insert_element(1, Msg, mp), but it's not available in
+    %% erlang:insert_element(1, Msg, pm), but it's not available in
     %% all versions of erlang.
     case Channel of
         [$# | _] -> Msg;
-        _ -> erlang:list_to_tuple([mp | tuple_to_list(Msg)])
+        _ -> erlang:list_to_tuple([pm | tuple_to_list(Msg)])
     end;
 
 tokens_parse([User, "PART", Channel]) ->
