@@ -152,6 +152,12 @@
 4. ={ctcp, Command, [Args]}=. This message is sent when the bot receives
    a ctcp command (that is, a =PRIVMSG= starting and ending with =\0x1=).
    Args is a single string.
+   
+If one of the messages described above is received through private
+message (that is, a message sent directly to the bot, and not to the
+whole channel) is prefixed with the atom =mp=: for example, ={cmd,
+Channel, Nick, "time", []}= would become ={mp, cmd, BotNick, Nick,
+"time", []}=.
 
 * Footnotes
   
@@ -165,3 +171,4 @@
 [3] error means that the plugin can not be stopped (usually because
   it's not a =gen_event=).
 
+  
