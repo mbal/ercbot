@@ -1,5 +1,5 @@
 -module(rpn).
--export([evaluate/2, lex/1]).
+-export([lex/1, evaluate/2]).
 -include("macro.hrl").
 
 -define(BADARITH, "Error! Division by zero?").
@@ -22,7 +22,6 @@ evaluate(Rpn, OldStack) ->
 
 lex(Expression) ->
     lex1(Expression, []).
-
 lex1(["("|Expr], Res) ->
     lex1(Expr, ["(" | Res]);
 lex1([")"|Expr], Res) ->
@@ -46,7 +45,6 @@ lex1(_Expr, _Res) ->
 
 eval(_, Stack, _) when length(Stack) > 100 ->
     throw(too_big);
-
 eval(["+" | ExprList], [X, Y | Stack], OldStack) ->
     eval(ExprList, [X+Y | Stack], OldStack);
 eval(["-" | ExprList], [X, Y | Stack], OldStack) ->
@@ -57,14 +55,12 @@ eval(["/" | ExprList], [X, Y | Stack], OldStack) ->
     eval(ExprList, [Y/X | Stack], OldStack);
 eval(["^" | ExprList], [X, Y | Stack], OldStack) ->
     eval(ExprList, [pow(Y, X) | Stack], OldStack);
-
 eval(["@" | ExprList], Stack, OldStack) ->
     eval(ExprList, OldStack ++ Stack, OldStack);
 eval(["!" | ExprList], [X | Stack], OldStack) ->
     eval(ExprList, [factorial(X) | Stack], OldStack);
 eval([E | ExprList], Stack, OldStack) ->
     eval(ExprList, [E | Stack], OldStack);
-
 eval([], Result, _OldStack) ->
     Result.
 
@@ -78,6 +74,12 @@ factorial(N) when is_float(N) ->
 factorial(0) ->
     1;
 factorial(N) when (N > 0) andalso (N < 700) ->
-    N * factorial(N - 1);
+    factorial_tail(N, 1);
 factorial(_) ->
     throw(error).
+
+factorial_tail(1, Acc) ->
+    Acc;
+factorial_tail(N, Acc) ->
+    factorial_tail(N-1, N*Acc).
+

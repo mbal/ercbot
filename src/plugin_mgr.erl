@@ -51,14 +51,13 @@ init([Sup]) ->
     {ok, EvtPid} = gen_event:start_link({local, event_manager}),
     EPlugins = conf_server:lookup(eplugins),
     LoadedEPlugins = load_eplugins(EPlugins, EvtPid),
-    self() ! { start_splugin, Sup },
+    self() ! {start_splugin, Sup},
     {ok, #state{supervisor=Sup, event_manager=EvtPid,
                 evt_plugins=LoadedEPlugins}}.
 
 handle_cast(terminate, State) ->
     gen_event:stop(State#state.event_manager),
     {stop, shutdown, State};
-
 handle_cast({cmd, Channel, _, "help", []}, State) ->
     CmdString = get_cmd_string(),
     irc_api:send_priv_msg(Channel, "Available plugins:"),
@@ -69,7 +68,6 @@ handle_cast({cmd, Channel, _, "help", []}, State) ->
     irc_api:send_priv_msg(Channel, ["To get help on a specific plugin, use ",
                                     CmdString, "help <plugin>"]),
     {noreply, State};
-
 handle_cast({cmd, Channel, _, "help", [Name]}, State) ->
     %% check if there's a plugin with PLUGIN:name() == Name,
     %% if so, call PLUGIN:help(), otherwise say "Plugin not found".
@@ -93,7 +91,6 @@ handle_cast({cmd, Channel, _, "help", [Name]}, State) ->
             end
     end,
     {noreply, State};
-
 handle_cast(Message, State) ->
     lists:foreach(fun(Plugin) -> Plugin:cast(Message) end,
                   State#state.ser_plugins),
@@ -108,7 +105,6 @@ handle_call(reload, _From, State) ->
     ListPlugins = conf_server:lookup(eplugins),
     Plugins = load_eplugins(ListPlugins, State#state.event_manager),
     {reply, {ok, Plugins}, State#state{evt_plugins=Plugins}};
-
 handle_call({reload, PluginName}, _From, State) ->
     Plugins = conf_server:lookup(eplugins),
     Loaded = State#state.evt_plugins,
@@ -127,7 +123,6 @@ handle_call({reload, PluginName}, _From, State) ->
                     {reply, error, State}
             end
     end;
-
 handle_call({remove, PluginName}, _From, State) ->
     Stoppable = State#state.evt_plugins,
     List = lists:zip(Stoppable, get_names(Stoppable)),
@@ -140,7 +135,6 @@ handle_call({remove, PluginName}, _From, State) ->
             Plugins = lists:delete(Module, State#state.evt_plugins),
             {reply, ok, State#state{evt_plugins=Plugins}}
     end;
-
 handle_call(_Msg, _From, State) ->
     {reply, ok, State}.
 
@@ -153,14 +147,12 @@ handle_info({start_splugin, Sup}, State) ->
                 end,
     SPlugins = load_plugins(Plugins, PluginSup),
     {noreply, State#state{plugin_sup=PluginSup, ser_plugins=SPlugins}};
-
 handle_info({gen_event_EXIT, _Handler, normal}, State) ->
     {noreply, State};
 handle_info({gen_event_EXIT, Handler, Reason}, State) ->
     utils:debug("Plugin ~p crashed (reason ~p)", [Handler, Reason]),
     gen_event:add_sup_handler(State#state.event_manager, Handler, []),
     {noreply, State};
-
 handle_info(_Info, State) ->
     {noreply, State}.
 

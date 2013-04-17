@@ -3,7 +3,8 @@
 %%% @copyright (C) 2013, 
 %%% @doc
 %%% Implementation from:
-%%% http://pdincau.wordpress.com/2011/06/28/an-easy-way-to-handle-configuration-parameters-in-erlang/
+%%% http://pdincau.wordpress.com/2011/06/28/
+%%% an-easy-way-to-handle-configuration-parameters-in-erlang/
 %%% 
 %%% @end
 %%% Created : 14 Feb 2013 by  <mbal>
