@@ -92,7 +92,11 @@ tokens_parse([User, "PRIVMSG", Channel | Rest]) ->
     %% all versions of erlang.
     case Channel of
         [$# | _] -> Msg;
-        _ -> erlang:list_to_tuple([pm | tuple_to_list(Msg)])
+        _ -> 
+            case Msg of
+                {ctcp, _, _, _} -> Msg;
+                _ -> erlang:list_to_tuple([pm | tuple_to_list(Msg)])
+            end
     end;
 
 tokens_parse([User, "PART", Channel]) ->
