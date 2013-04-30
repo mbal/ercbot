@@ -1,7 +1,7 @@
 -module(irc_api).
 
 %% main irc commands
--export([send_priv_msg/2, change_nick/1, send_msg/1]).
+-export([send_priv_msg/2, change_nick/1, send_msg/1, kick_user/3]).
 %% Bot related
 -export([shutdown_bot/0, restart_bot/0]).
 %% plugins managing
@@ -12,6 +12,9 @@
 -export([is_admin/1, is_channel/1]).
 
 -define(BOT, bot_fsm).
+
+kick_user(Channel, Nick, Reason) ->
+    gen_fsm:send_all_state_event(?BOT, {send, "KICK " ++ Channel ++ " " ++ Nick ++ " " ++ Reason}).
 
 send_priv_msg(Channel, Message) ->
     gen_fsm:send_all_state_event(?BOT, {reply_priv, Channel, Message}).
