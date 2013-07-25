@@ -91,9 +91,9 @@ train(Order, State) ->
 
 talk(Channel, L, FreqTable) ->
     {Length, _} = string:to_integer(L),
-    case (Length < 5) or (Length > 150) of
+    case (Length < 5) or (Length > 250) of
         true ->
-            irc_api:send_priv_msg(Channel, "Lenght isn't in [5, 100]");
+            irc_api:send_priv_msg(Channel, "Lenght isn't in [5, 250]");
         false ->
             irc_api:send_priv_msg(Channel,
                                      markov:generate_text(Length, FreqTable))

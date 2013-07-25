@@ -17,8 +17,11 @@
 -export([init/1, handle_call/3, handle_cast/2, handle_info/2,
          terminate/2, code_change/3]).
 -export([cast/1, but_last/1]).
+-export([name/0]).
 
 -define(SERVER, ?MODULE). 
+
+name() -> none.
 
 %%% interval_table is an ets table, which contains, for every user, 
 %%% a list of the times when the bot saw the last 7 messages
